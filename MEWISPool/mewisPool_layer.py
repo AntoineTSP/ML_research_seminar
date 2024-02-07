@@ -5,17 +5,37 @@ from torch_geometric.nn import GINConv
 from torch_geometric.utils import get_laplacian
 
 class MLP(nn.Module):
-    def __init__(self, input_dim, hidden_dim, output_dim):
+    def __init__(self, input_dim, hidden_dim, output_dim, enhance=False):
         super(MLP, self).__init__()
 
+        self.enhance = enhance
+
         self.fc1 = nn.Linear(in_features=input_dim, out_features=hidden_dim)
-        self.bn = nn.BatchNorm1d(hidden_dim)
-        self.fc2 = nn.Linear(in_features=hidden_dim, out_features=output_dim)
+        self.fc2 = nn.Linear(in_features=hidden_dim, out_features=hidden_dim)
+        self.fc3 = nn.Linear(in_features=hidden_dim, out_features=output_dim)
+
+        if enhance:
+            self.bn1 = nn.BatchNorm1d(hidden_dim)
+            self.bn2 = nn.BatchNorm1d(hidden_dim)
+            self.dropout = nn.Dropout(0.2)
 
     def forward(self, x):
-        x = F.relu(self.fc1(x))
-        x = self.bn(x)
+        x = self.fc1(x)
+        if self.enhance:
+            x = self.bn1(x)
+        x = torch.relu(x)
+        if self.enhance:
+            x = self.dropout(x)
+
         x = self.fc2(x)
+        if self.enhance:
+            x = self.bn2(x)
+        x = torch.relu(x)
+        if self.enhance:
+            x = self.dropout(x)
+
+        x = self.fc3(x)
+
         return x
         
 
