@@ -21,7 +21,8 @@ def plot_from_dict(list_dict : List[Dict], figsize : Tuple[int,int]) -> None :
                          'mean_accuracy',
                          'homophily',
                          'global_pooling_layer',
-                         'convolution_layer']
+                         'convolution_layer',
+                         'dataset']
 
   for i,d in enumerate(list_dict) :
 
@@ -96,5 +97,8 @@ def plot_from_dict(list_dict : List[Dict], figsize : Tuple[int,int]) -> None :
   ax.set_xlabel("Number of parameters")
   ax.set_ylabel("Mean accuracy")
   ax.set_zlabel("Homophily", labelpad=0.)
+
+  name_dataset = list_dict[0]['dataset']
+  plt.savefig(f"./Visualisation/results/scatter_plot_3D-{name_dataset}.png")
 
   plt.show()
