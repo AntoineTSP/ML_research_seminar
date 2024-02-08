@@ -1,5 +1,4 @@
 model:
-  model_name: test
   output_model_path: model/weights
   output_results_path: model/results
   dataset_path: data/TUDataset
@@ -13,4 +12,4 @@ model:
   hidden_channels: 64
   convolution_layer: GCN
   global_pooling_layer: mean
-  local_pooling_layer: SAG
+  local_pooling_layer:

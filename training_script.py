@@ -11,6 +11,7 @@ import json
 import yaml
 import argparse
 
+
 def train(model):
     model.train()
 
@@ -73,25 +74,24 @@ if __name__ == "__main__":
   with open(file_path, 'r') as file:
       config = yaml.safe_load(file)["model"]
 
-  model_name = config.pop("model_name", "test_model")
   output_model_path = config.pop("output_model_path", "model/weights")
   output_results_path = config.pop("output_results_path", "model/results")
   device = config.pop("device", None)
   if device is None:
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
   verbose = config.pop("verbose", 2)
-  dataset_path = config.pop("dataset_path", "data/TUDataset")
+  dataset_path = config.pop("dataset_path")
   nb_of_trainings = config.pop("nb_of_trainings", 1)
   hidden_channels = config.pop("hidden_channels", 64)
 
   result = dict(config)
-  dataset_name = config.pop("dataset", "MUTAG")
+  dataset_name = config.pop("dataset")
   max_epochs = config.pop("max_epochs", 200)
   patience = config.pop("patience", 20)
   lr = config.pop("lr", 0.005)
-  conv_layer = config.pop("convolution_layer", "GCN")
-  global_pooling_layer = config.pop("global_pooling_layer", "mean")
-  local_pooling_layer = config.pop("local_pooling_layer", "SAG")
+  conv_layer = config.pop("convolution_layer")
+  global_pooling_layer = config.pop("global_pooling_layer")
+  local_pooling_layer = config.pop("local_pooling_layer")
 
 
   # Training
@@ -137,8 +137,12 @@ if __name__ == "__main__":
   # Model saving
   print(f'Mean Test Acc: {result["mean_accuracy"]:.4f}, Std Test Acc: {result["std_accuracy"]:.4f}')
   os.makedirs(output_model_path, exist_ok = True) 
+
+  model_name = f"{dataset_name}_{conv_layer}_{global_pooling_layer}_{local_pooling_layer}.json"
+
   torch.save(best_model.state_dict(), os.path.join(output_model_path, model_name))
 
   os.makedirs(output_results_path, exist_ok = True)
-  with open(os.path.join(output_results_path, model_name+".json"), 'w') as json_file:
+
+  with open(os.path.join(output_results_path, model_name), 'w') as json_file:
       json.dump(result, json_file, indent=2)
