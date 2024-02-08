@@ -1,5 +1,4 @@
 model:
-  model_name: test
   output_model_path: model/weights
   output_results_path: model/results
   dataset_path: data/TUDataset
@@ -16,3 +15,4 @@ model:
   local_pooling_layer:
   alpha: 1e-2
   batch_size: 64
+
