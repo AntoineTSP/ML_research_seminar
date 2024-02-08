@@ -10,7 +10,6 @@ import matplotlib.patches as mpatches
 from matplotlib import MatplotlibDeprecationWarning
 
 
-
 def plot_from_dict(list_dict : List[Dict], figsize : Tuple[int,int]) -> None :
   """
   Plot the graph resulting from the list of dictionnary
@@ -73,8 +72,9 @@ def plot_from_dict(list_dict : List[Dict], figsize : Tuple[int,int]) -> None :
 
 
   # scatter in 3D
-  ax = plt.figure(figsize=figsize).add_subplot(projection='3d')
+  fig = plt.figure(figsize=figsize)
   plt.tight_layout()
+  ax = ax = fig.add_subplot(111, projection='3d')
 
   # the legend for the colors
   colors_keys = list(color_mapping.keys())
