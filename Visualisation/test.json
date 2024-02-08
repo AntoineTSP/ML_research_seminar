@@ -1,0 +1,12 @@
+{
+  "dataset": "MUTAG",
+  "max_epochs": 200,
+  "patience": 20,
+  "lr": 0.005,
+  "convolution_layer": "GCN",
+  "global_pooling_layer": "mean",
+  "local_pooling_layer": "SAG",
+  "nb_parameters": 9352,
+  "mean_accuracy": 0.7456140350877193,
+  "std_accuracy": 0.01240538212607982
+}
