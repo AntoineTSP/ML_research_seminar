@@ -54,10 +54,9 @@ class MEWISPool(nn.Module):
         V = x * torch.matmul(L, x) - x * torch.matmul(A, x) + torch.matmul(A, x * x)
         V = torch.norm(V, dim=1)
 
-        # computing the probability distributions based on the local variations; Eq. (7)
         P = torch.cat([torch.softmax(V[batch == i], dim=0) for i in torch.unique(batch)])
         P[P == 0.] += 1
-        # computing the entropies; Eq. (8)
+
         H = -P * torch.log(P)
 
         return H.unsqueeze(-1).to(self.device)
@@ -129,8 +128,7 @@ class MEWISPool(nn.Module):
                                     torch.Size([batch_nodes, batch_nodes])).to(self.device)
         A = (torch.diag(torch.diag(L.to_dense())) - L.to_dense()).to(self.device)
 
-        # entropy computation
-        entropies = self.compute_entropy(x, L, A, batch)  # Eq. (8)
+        entropies = self.compute_entropy(x, L, A, batch) 
 
         # graph convolution and probability scores
         probabilities = self.gc1(entropies, edge_index)
@@ -144,7 +142,7 @@ class MEWISPool(nn.Module):
 
         mewis_indices = self.conditional_expectation(entropies, probabilities, A, loss, gamma)
 
-        # graph reconstruction; Eq. (10)
+        # graph reconstruction
         x_pooled, adj_pooled = self.graph_reconstruction(mewis_indices, x, A)
         edge_index_pooled, batch_pooled = self.to_edge_index(adj_pooled, mewis_indices, batch)
 
