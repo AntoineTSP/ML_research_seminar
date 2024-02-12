@@ -11,6 +11,8 @@ import json
 import yaml
 import argparse
 
+torch.use_deterministic_algorithms(True)
+
 def train(model, alpha=1e-2):
     model.train()
 
@@ -78,6 +80,7 @@ if __name__ == "__main__":
   device = config.pop("device", None)
   if device is None:
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
   verbose = config.pop("verbose", 2)
   dataset_path = config.pop("dataset_path", "data/TUDataset")
   location = dataset_path.split("/")[-1]
