@@ -1,0 +1,14 @@
+{
+  "dataset": "MNIST",
+  "max_epochs": 20,
+  "patience": 20,
+  "lr": 0.005,
+  "convolution_layer": "GCN",
+  "global_pooling_layer": "mean",
+  "local_pooling_layer": null,
+  "alpha": "1e-2",
+  "batch_size": 64,
+  "nb_parameters": 9098,
+  "mean_accuracy": 0.37059999999999993,
+  "std_accuracy": 0.02333844414708512
+}
