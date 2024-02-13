@@ -5,10 +5,10 @@
   "lr": 0.005,
   "convolution_layer": "GCN",
   "global_pooling_layer": "mean",
-  "local_pooling_layer": null,
+  "local_pooling_layer": "MEWIS",
   "alpha": "1e-2",
   "batch_size": 64,
-  "nb_parameters": 706,
-  "mean_accuracy": 0.6605263157894736,
-  "std_accuracy": 0.10621282142426615
+  "nb_parameters": 6565,
+  "mean_accuracy": 0.6368421052631579,
+  "std_accuracy": 0.1038056995964001
 }

@@ -1,0 +1,14 @@
+{
+  "dataset": "PROTEINS",
+  "max_epochs": 200,
+  "patience": 20,
+  "lr": 0.005,
+  "convolution_layer": "GCN",
+  "global_pooling_layer": "mean",
+  "local_pooling_layer": "MEWIS",
+  "alpha": "1e-2",
+  "batch_size": 64,
+  "nb_parameters": 6501,
+  "mean_accuracy": 0.7017937219730942,
+  "std_accuracy": 0.017739946587311622
+}
