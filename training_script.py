@@ -12,6 +12,7 @@ import yaml
 import argparse
 
 torch.use_deterministic_algorithms(True)
+torch.backends.cudnn.deterministic = True
 
 def train(model, alpha=1e-2):
     model.train()
@@ -108,6 +109,7 @@ if __name__ == "__main__":
     
     # Creation of the dataset
     torch.manual_seed(12345+i)
+    torch.cuda.manual_seed_all(12345+i)
     dataset = dataset.shuffle()
     n = len(dataset)
     train_dataset = dataset[:int(0.6*n)]
@@ -142,6 +144,7 @@ if __name__ == "__main__":
 
   # Model saving
   print(f'Mean Test Acc: {result["mean_accuracy"]:.4f}, Std Test Acc: {result["std_accuracy"]:.4f}')
+  
   os.makedirs(output_model_path, exist_ok = True) 
 
   model_name = f"{dataset_name}_{conv_layer}_{global_pooling_layer}_{local_pooling_layer}.json"
