@@ -16,7 +16,6 @@ torch.backends.cudnn.deterministic = True
 
 def train(model, alpha=1e-2):
     model.train()
-
     for data in train_loader:  # Iterate in batches over the training dataset.
         data=data.to(device)
         out, losses = model(data.x, data.edge_index, data.batch)  # Perform a single forward pass.
@@ -27,23 +26,32 @@ def train(model, alpha=1e-2):
 
 def test(model, loader):
     model.eval()
-
+    loss_epoch = []
     correct = 0
     for data in loader:  # Iterate in batches over the training/test dataset.
         data=data.to(device)
-        out, _ = model(data.x, data.edge_index, data.batch)
+        out, losses = model(data.x, data.edge_index, data.batch)
+        loss = criterion(out, data.y) + alpha*torch.sum(losses)  # Compute the loss.
+        loss_epoch.append(loss.detach().cpu().item())
         pred = out.argmax(dim=1)  # Use the class with highest probability.
         correct += int((pred == data.y).sum())  # Check against ground-truth labels.
-    return correct / len(loader.dataset)  # Derive ratio of correct predictions.
+    return correct / len(loader.dataset), np.mean(loss_epoch)  # Derive ratio of correct predictions.
 
 def training_loop(nb_max_epochs, patience, verbose=1, alpha=1e-2):
-
+  train_losses = []
+  val_losses = []
+  train_accuracies = []
+  val_accuracies = []
   min_val_acc = -1
   iterations_WO_improvements = 0
   for epoch in range(1, nb_max_epochs):
       train(model, alpha)
-      train_acc = test(model, train_loader)
-      val_acc = test(model, val_loader)
+      train_acc, train_loss = test(model, train_loader)
+      val_acc, val_loss = test(model, val_loader)
+      train_losses.append(train_loss)
+      val_losses.append(val_loss)
+      train_accuracies.append(train_loss)
+      val_accuracies.append(val_loss)
 
       # Early stopping
       if min_val_acc < -1 or min_val_acc < val_acc:
@@ -60,9 +68,9 @@ def training_loop(nb_max_epochs, patience, verbose=1, alpha=1e-2):
         # Print should be replaced by logs ideally
         print(f'Epoch: {epoch:03d}, Train Acc: {train_acc:.4f}, Val Acc: {val_acc:.4f}')
 
-  test_acc = test(best_model, test_loader)
-
-  return best_model, test_acc
+  test_acc, _ = test(best_model, test_loader)
+  last_epoch = epoch
+  return best_model, test_acc, train_losses, val_losses, train_accuracies, val_accuracies, last_epoch
 
 
 if __name__ == "__main__":
@@ -132,7 +140,13 @@ if __name__ == "__main__":
     criterion = torch.nn.CrossEntropyLoss()
 
     # Model training
-    best_model, test_acc = training_loop(max_epochs, patience, alpha=alpha)
+    best_model, test_acc, train_losses, val_losses, train_accuracies, val_accuracies, last_epoch = training_loop(max_epochs, patience, alpha=alpha)
+    result["split "+str(i+1)] = {"train_losses":train_losses,
+                               "val_losses":val_losses,
+                               "train_accuracies":train_accuracies,
+                               "val_accuracies":val_accuracies,
+                               "test_accuracy":test_acc,
+                               "last_epoch":last_epoch}
     if verbose > 0:
       print(f'Model number: {i:02d}, Test Acc: {test_acc:.4f}')
     test_accuracy_list.append(test_acc)
@@ -147,11 +161,11 @@ if __name__ == "__main__":
   
   os.makedirs(output_model_path, exist_ok = True) 
 
-  model_name = f"{dataset_name}_{conv_layer}_{global_pooling_layer}_{local_pooling_layer}.json"
+  model_name = f"{dataset_name}_{conv_layer}_{global_pooling_layer}_{local_pooling_layer}"
 
   torch.save(best_model.state_dict(), os.path.join(output_model_path, model_name))
 
   os.makedirs(output_results_path, exist_ok = True)
 
-  with open(os.path.join(output_results_path, model_name), 'w') as json_file:
+  with open(os.path.join(output_results_path, model_name) + ".json", 'w') as json_file:
       json.dump(result, json_file, indent=2)
