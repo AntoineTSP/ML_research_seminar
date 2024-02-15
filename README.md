@@ -4,7 +4,7 @@ This will contain all the file for the M2DS course : ML research seminar
 # To use training_script
 
 ```
-CUBLAS_WORKSPACE_CONFIG=:16:8 python training_script.py -c configs/config_test.yml
+python training_script.py -c configs/config_test.yml
 ```
 
 One has to properly fill the yml file. Don't forget to install the yaml module.

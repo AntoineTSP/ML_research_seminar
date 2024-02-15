@@ -15,4 +15,5 @@ model:
   local_pooling_layer:
   alpha: 1e-2
   batch_size: 64
+  deterministic_algorithms: True
 
