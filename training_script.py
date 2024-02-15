@@ -11,9 +11,6 @@ import json
 import yaml
 import argparse
 
-torch.use_deterministic_algorithms(True)
-torch.backends.cudnn.deterministic = True
-
 def train(model, alpha=1e-2):
     model.train()
 
@@ -98,6 +95,12 @@ if __name__ == "__main__":
   conv_layer = config.pop("convolution_layer", "GCN")
   global_pooling_layer = config.pop("global_pooling_layer", "mean")
   local_pooling_layer = config.pop("local_pooling_layer", "SAG")
+    
+  use_deterministic_algorithms = config.pop("deterministic_algorithms", True)
+  if use_deterministic_algorithms:
+    os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
+    torch.use_deterministic_algorithms(True)
+    torch.backends.cudnn.deterministic = True
 
   # Loading the dataset with the string
   dataset = eval("datasets."+location)(dataset_path, name=dataset_name)
