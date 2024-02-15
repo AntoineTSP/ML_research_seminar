@@ -25,11 +25,11 @@ def local_pooling_selection(layer : str, device : str):
         raise NotImplementedError(layer+" local pooling has not been implemented yet. Check if it has been added to the model/layer_selector.py file.")
 
 
-def conv_selection(layer : str):
+def conv_selection(layer : str, attention_heads:int):
     ''' Returns a convolutional layer '''
     if layer == "GCN":
         return GCNConv
     elif layer == "GAT":
-        return GAT
+        return lambda in_channels,hidden_channels:GAT(in_channels,hidden_channels,num_layers=attention_heads)
     else:
         raise NotImplementedError(layer+" convolutional layer has not been implemented yet. Check if it has been added to the model/layer_selector.py file.")

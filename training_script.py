@@ -101,6 +101,7 @@ if __name__ == "__main__":
   alpha = float(config.pop("alpha", 1e-2))
   batch_size = config.pop("batch_size", 64)
   conv_layer = config.pop("convolution_layer", "GCN")
+  attention_heads = config.pop("attention_heads", 4)
   global_pooling_layer = config.pop("global_pooling_layer", "mean")
   local_pooling_layer = config.pop("local_pooling_layer", "SAG")
     
@@ -132,10 +133,12 @@ if __name__ == "__main__":
 
     # Model build
     local_pooling, dic_conversion_layer = local_pooling_selection(local_pooling_layer, device=device)
+    convolutional_layer=conv_selection(conv_layer, attention_heads)
+
     model = GCN(num_node_features=dataset.num_node_features, 
                 num_classes=dataset.num_classes, 
                 hidden_channels=hidden_channels,
-                conv_method=conv_selection(conv_layer), 
+                conv_method=convolutional_layer, 
                 global_pool_method=global_pooling_selection(global_pooling_layer), 
                 local_pool_method=local_pooling,
                 dic_conversion_layer=dic_conversion_layer).to(device)
