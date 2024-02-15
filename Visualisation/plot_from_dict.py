@@ -102,3 +102,82 @@ def plot_from_dict(list_dict : List[Dict], figsize : Tuple[int,int]) -> None :
   plt.savefig(f"./Visualisation/results/scatter_plot_3D-{name_dataset}.png")
 
   plt.show()
+
+
+
+def pairplot_from_dict(list_dict : List[Dict], 
+                       rows_to_plot : List[Tuple[str,str]],
+                       dim_grid_subplots : Tuple[int,int],
+                       figsize : Tuple[int,int] | None = None) -> None :
+        
+    '''
+    Plot all the in subfigures all the variables described in rows_to_plot
+
+    rows_to_plot -> All the variables of the dictionnaries of list_dict we want to
+    plot (for instance, denoting (x,y) the first entry of rows_to_plot, the first plot will
+    be dict[x] for the x-axis and dict[y] for the y-axis, for dict in list_dict)
+
+    dim_grid_subplots -> the dimension of the grid of subplots (for instance (2,3) means that there
+    are two rows and 3 columns)
+
+    Raises error if some elements of the rows don't correspond to key values in list_dict,
+    or if the number of elements of rows_to_plot don't fit the dimension of dim_grid_subplots
+    '''
+    # the list of all keys present in list_dict
+    keys_list_dict = [dic.keys() for dic in list_dict]
+
+    for i, (key1, key2) in enumerate(rows_to_plot) :
+        
+        # check if key1 is present in the keys of all dictionnary
+        if not(all(key1 in key for key in keys_list_dict)) :
+
+            raise Exception(
+                            f"The first key of the {i+1}-th element of the variables "
+                            "to plot is not present in all keys of the dictionnaries "
+                            )
+        
+        # same for key2
+        if not(all(key2 in key for key in keys_list_dict)) :
+
+            raise Exception(
+                            f"The first key of the {i+1}-th element of the variables "
+                             "to plot is not present in all keys of the dictionnaries "
+                            )
+        
+
+    n_plot_rows, n_plot_cols = dim_grid_subplots
+
+    if n_plot_rows*n_plot_cols != len(rows_to_plot) :
+
+        raise Exception(
+                        f"The number of plots imposed by the dimension of the grid "
+                        f"({n_plot_rows} x {n_plot_cols} = {n_plot_rows*n_plot_cols}) "
+                        f"is not consistent with the number of plots ({len(rows_to_plot)}) ")
+    
+
+    fig, axs = plt.subplots(n_plot_rows, n_plot_cols, figsize=figsize)
+
+    axs = axs.flatten()
+
+    n_dict = len(list_dict)
+
+    for ax, (key1, key2) in zip(axs, rows_to_plot) :
+
+        x_values = [list_dict[i][key1] for i in range(n_dict)]
+        y_values = [list_dict[i][key2] for i in range(n_dict)]
+
+        ax.scatter(x_values, y_values)
+
+        ax.set_xlabel(key1)
+        ax.set_ylabel(key2)
+
+
+    plt.tight_layout()
+
+    name_dataset = list_dict[0]['dataset']
+    plt.savefig(f"./Visualisation/results/pairplot-{name_dataset}.png")
+
+    # Show the plot
+    plt.show()
+
+    return 
