@@ -1,10 +1,11 @@
 import yaml
 import os
 from training_script import train_model_from_config
+import torch
 
 global_pooling_layer_to_test = ["mean", "max"]
 local_pooling_layers_to_test = ["SAG","MEWIS", None]
-convolution_layers_to_test = ["GCN", "GAT"]
+convolution_layers_to_test = ["GCN", "GAT", "GINConv"]
 # Define your configuration data
 
 path_templates = "configs/templates"
@@ -25,6 +26,7 @@ for config_path in configs_path:
                     config_model["model"]["local_pooling_layer"] = local_pooling_layer
                     # Specify the file path where you want to save the YAML configuration
                     config_name = f"{dataset_name}_{convolution_layer}_{global_pooling_layer}_{local_pooling_layer}.yaml"
+                    config_model["model"]["device"] = "cuda" if torch.cuda.is_available() else "cpu"
     
                     # Write the configuration data to the YAML file
                     with open(os.path.join(path_generated,config_name), 'w') as config_file:
