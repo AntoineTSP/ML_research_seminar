@@ -189,4 +189,4 @@ if __name__ == "__main__":
   args = parser.parse_args()
 
   file_path=args.config
-  main(file_path)
+  train_model_from_config(file_path)

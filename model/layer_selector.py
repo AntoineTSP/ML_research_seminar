@@ -1,4 +1,4 @@
-from torch_geometric.nn import GCNConv, GAT, global_mean_pool, global_max_pool, SAGPooling
+from torch_geometric.nn import GCNConv, GAT, GINConv, global_mean_pool, global_max_pool, SAGPooling, TopKPooling, EdgePooling
 from model.mewisPool_layer import MEWISPool, MLP
 
 def global_pooling_selection(layer : str):
@@ -16,6 +16,12 @@ def local_pooling_selection(layer : str, device : str):
     if layer == "SAG":
         dic_conversion_layer = {'node_features':0,'edge_index':1,'batch':3}
         return lambda h:SAGPooling(h), dic_conversion_layer
+    elif layer == "TOPK":
+        dic_conversion_layer = {'node_features':0,'edge_index':1,'batch':3}
+        return lambda h:TopKPooling(h), dic_conversion_layer
+    elif layer == "EDGE":
+        dic_conversion_layer = {'node_features':0,'edge_index':1,'batch':2}
+        return lambda h:EdgePooling(h), dic_conversion_layer
     elif layer == "MEWIS":
         dic_conversion_layer = {'node_features':0,'edge_index':1,'batch':2, 'loss':3}
         return lambda h:MEWISPool(h, device=device), dic_conversion_layer
