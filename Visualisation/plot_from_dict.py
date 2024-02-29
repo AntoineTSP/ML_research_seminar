@@ -381,3 +381,47 @@ def plot_acc(list_dict, train="train"):
                             "_" +dict['convolution_layer'] + "_" +  "None_" +
                             dict["global_pooling_layer"] + ".png")
                 plt.close()
+
+
+def plot_acc_and_loss(list_dict, train="train"):
+    for dict in list_dict:
+        if 'split 1' in dict:
+            fig = plt.figure()
+            ax1 = fig.add_subplot(1, 1, 1)
+            color = 'tab:blue'
+            ax1.plot(np.arange(len(dict['split 1']['train_accuracies'])), dict['split 1'][train + '_accuracies'],
+                    color=color, label= train + " accuracy")
+            ax1.set_xlabel("Epochs")
+            ax1.set_ylabel(train + " acc", color=color)
+            ax1.tick_params(axis='y', labelcolor=color)
+
+            # Creating a secondary y-axis for the second curve
+            ax2 = ax1.twinx()
+            color = 'tab:red'
+            ax2.plot(np.arange(len(dict['split 1'][train + '_losses'])), dict['split 1'][train + '_losses'],
+                    color=color, label=train + " loss")
+            ax2.set_xlabel("Epochs")
+            ax2.set_ylabel(train + " loss", color=color)
+            ax2.tick_params(axis='y', labelcolor=color)
+
+            # Adding legends
+            lines, labels = ax1.get_legend_handles_labels()
+            lines2, labels2 = ax2.get_legend_handles_labels()
+            ax1.legend(lines + lines2, labels + labels2, loc='upper left')
+            
+            if dict["local_pooling_layer"] is not None:
+                ax1.set_title(train + " accuracy and loss across epochs with early stopping" +  "\n" +
+                            "for " + dict["dataset"] + " with " + dict['convolution_layer'] + 
+                             "," + dict["local_pooling_layer"] + " and " + dict["global_pooling_layer"])
+                plt.savefig("./Visualisation/results/acc_and_loss/" + train + "/" + dict["dataset"] +
+                            "_"  + dict['convolution_layer'] + "_" + dict["local_pooling_layer"] +
+                            "_" + dict["global_pooling_layer"] + ".png")
+                plt.close()
+            else:
+                ax1.set_title(train + " accuracy and loss across epochs with early stopping" +  "\n" +
+                            "for " + dict["dataset"] + " with " + dict['convolution_layer'] +
+                             "," + "None " + " and " +  dict["global_pooling_layer"])
+                plt.savefig("./Visualisation/results/acc_and_loss/" + train + "/" + dict["dataset"] +
+                            "_" +dict['convolution_layer'] + "_" +  "None_" +
+                            dict["global_pooling_layer"] + ".png")
+                plt.close()
