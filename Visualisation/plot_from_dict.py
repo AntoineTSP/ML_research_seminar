@@ -32,10 +32,10 @@ def plot_from_dict(list_dict : List[Dict], figsize : Tuple[int,int]) -> None :
       raise Exception(f"Problem of key for the {i}-th dictionnary")
 
 
-  # the x,y and z of the scatter in 3D
-  x = np.array([d['nb_parameters'] for d in list_dict])
-  y = np.array([d['mean_accuracy'] for d in list_dict])
-  z = np.array([d['homophily'] for d in list_dict])
+      # the x,y and z of the scatter in 3D
+      x = np.array([d['nb_parameters'] for d in list_dict])
+      y = np.array([d['mean_accuracy'] for d in list_dict])
+      z = np.array([d['homophily'] for d in list_dict])
 
 
     # the poolings will be used for the color of the points
@@ -355,3 +355,28 @@ def plot_acc_parameters(list_dict):
         plt.legend(loc='lower right', bbox_to_anchor=(1.3, 0), borderaxespad=0.)
         plt.savefig("./Visualisation/results/acc_parameters/" + dataset + ".png", bbox_inches='tight')
         plt.show()
+
+def plot_acc(list_dict, train="train"):
+    for dict in list_dict:
+        if 'split 1' in dict:
+            fig = plt.figure()
+            ax = fig.add_subplot(1, 1, 1)
+            ax.plot(np.arange(len(list_dict[0]['split 1']['train_accuracies'])), list_dict[0]['split 1'][train + '_accuracies'])
+            ax.set_xlabel("Epochs")
+            ax.set_ylabel(train + " acc")
+            if dict["local_pooling_layer"] is not None:
+                ax.set_title(train + " accuracy across epochs with early stopping" +  "\n" +
+                            "for " + dict["dataset"] + " with " + dict['convolution_layer'] + 
+                             "," + dict["local_pooling_layer"] + " and " + dict["global_pooling_layer"])
+                plt.savefig("./Visualisation/results/acc/" + train + "/" + dict["dataset"] +
+                            "_"  + dict['convolution_layer'] + "_" + dict["local_pooling_layer"] +
+                            "_" + dict["global_pooling_layer"] + ".png")
+                plt.close()
+            else:
+                ax.set_title(train + " accuracy across epochs with early stopping" +  "\n" +
+                            "for " + dict["dataset"] + " with " + dict['convolution_layer'] +
+                             "," + "None " + " and " +  dict["global_pooling_layer"])
+                plt.savefig("./Visualisation/results/acc/" + train + "/" + dict["dataset"] +
+                            "_" +dict['convolution_layer'] + "_" +  "None_" +
+                            dict["global_pooling_layer"] + ".png")
+                plt.close()
