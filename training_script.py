@@ -37,7 +37,7 @@ class Trainer():
                 local_pool_method=local_pooling,
                 dic_conversion_layer=dic_conversion_layer).to(device)
     self.lr = lr
-    self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
+    self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr, weight_decay=1e-5)
     self.criterion = torch.nn.CrossEntropyLoss()
 
     self.alpha = alpha
@@ -55,13 +55,14 @@ class Trainer():
           self.optimizer.step()  # Update parameters based on gradients.
           self.optimizer.zero_grad()  # Clear gradients.
 
-  def test(self, loader):
-      self.model.eval()
+  @staticmethod
+  def test(model, loader, device):
+      model.eval()
       loss_epoch = []
       correct = 0
       for data in loader:  # Iterate in batches over the training/test dataset.
-          data=data.to(self.device)
-          out, losses = self.model(data.x, data.edge_index, data.batch)
+          data=data.to(device)
+          out, losses = model(data.x, data.edge_index, data.batch)
           loss = self.criterion(out, data.y) + self.alpha*torch.sum(losses)  # Compute the loss.
           loss_epoch.append(loss.detach().cpu().item())
           pred = out.argmax(dim=1)  # Use the class with highest probability.
@@ -73,20 +74,22 @@ class Trainer():
     val_losses = []
     train_accuracies = []
     val_accuracies = []
-    min_val_acc = -1
+    best_acc = 0
+    min_val_loos = np.inf
     iterations_WO_improvements = 0
     for epoch in range(1, self.nb_max_epochs):
         self.train()
-        train_acc, train_loss = self.test(self.train_loader)
-        val_acc, val_loss = self.test(self.val_loader)
+        train_acc, train_loss = self.test(self.model, self.train_loader, self.device)
+        val_acc, val_loss = self.test(self.model, self.val_loader, self.device)
         train_losses.append(train_loss)
         val_losses.append(val_loss)
-        train_accuracies.append(train_loss)
-        val_accuracies.append(val_loss)
+        train_accuracies.append(train_acc)
+        val_accuracies.append(val_acc)
 
         # Early stopping
-        if min_val_acc < -1 or min_val_acc < val_acc:
-          min_val_acc = val_acc
+        if val_acc >= best_acc:
+          best_acc = val_acc
+          min_val_loss = val_loss
           iterations_WO_improvements = 0
           best_model = copy.deepcopy(self.model)
         else:
@@ -99,9 +102,9 @@ class Trainer():
           # Print should be replaced by logs ideally
           print(f'Epoch: {epoch:03d}, Train Acc: {train_acc:.4f}, Val Acc: {val_acc:.4f}')
 
-    test_acc, _ = self.test(self.test_loader)
+    test_acc, _ = self.test(best_model, self.test_loader, self.device)
     last_epoch = epoch
-    return best_model, test_acc, train_losses, val_losses, train_accuracies, val_accuracies, last_epoch
+    return best_model, test_acc, train_losses, val_losses, train_accuracies, val_accuracies, last_epoch, min_val_loss, best_acc
 
 
 def train_model_from_config(file_path):
@@ -119,7 +122,7 @@ def train_model_from_config(file_path):
   dataset_path = config.pop("dataset_path", "data/TUDataset")
   location = dataset_path.split("/")[-1]
   nb_of_splits = config.pop("nb_of_splits", 10)
-  hidden_channels = config.pop("hidden_channels", 64)
+  hidden_channels = config.pop("hidden_channels", 32)
 
   result = dict(config)
   dataset_name = config.pop("dataset")
@@ -144,16 +147,19 @@ def train_model_from_config(file_path):
 
   best_test_acc = 0
   test_accuracy_list = [] 
-
+    
+  print('\n' + str(dataset_name))
+  print(conv_layer, global_pooling_layer, local_pooling_layer)
+    
   for i in range(nb_of_splits):
     torch.manual_seed(12345+i)
     torch.cuda.manual_seed_all(12345+i)
     dataset = dataset.shuffle()
 
     trainer = Trainer(dataset, batch_size, lr, conv_layer, global_pooling_layer, local_pooling_layer, attention_heads, hidden_channels, max_epochs, patience, verbose, device, alpha)
-
+    
     # Model training
-    best_model, test_acc, train_losses, val_losses, train_accuracies, val_accuracies, last_epoch = trainer.training_loop()
+    best_model, test_acc, train_losses, val_losses, train_accuracies, val_accuracies, last_epoch, min_val_loss, best_acc = trainer.training_loop()
     result["split "+str(i+1)] = {"train_losses":train_losses,
                                "val_losses":val_losses,
                                "train_accuracies":train_accuracies,
@@ -161,7 +167,7 @@ def train_model_from_config(file_path):
                                "test_accuracy":test_acc,
                                "last_epoch":last_epoch}
     if verbose > 0:
-      print(f'Model number: {i:02d}, Test Acc: {test_acc:.4f}')
+      print(f'Model number: {i:02d}, Train acc: {train_accuracies[-1]:.4f}, Test Acc: {test_acc:.4f}, stopped at epoch {last_epoch} -> best val loss: {min_val_loss:.4f}, best val acc: {best_acc:.4f}')
     test_accuracy_list.append(test_acc)
 
   # Compute accuracies and informations about the model
