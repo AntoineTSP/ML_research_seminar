@@ -9,16 +9,34 @@ import matplotlib.markers as markers
 import matplotlib.patches as mpatches
 from matplotlib import MatplotlibDeprecationWarning
 
+import pandas as pd
+
+def plot_from_dict(list_dict : List[Dict], figsize : Tuple[int,int]) -> None :
+  """
+  Plot the graph resulting from the list of dictionnary
+
+  Raises an error if the desired keys are not present in a dictionnary
+  """
+  # checking that there is no problem of keys in each given dictionnary
+  key_values_to_check = ['nb_parameters',
+                         'mean_accuracy',
+                         'homophily',
+                         'global_pooling_layer',
+                         'convolution_layer',
+                         'dataset']
+
+  for i,d in enumerate(list_dict) :
+
+    if not(all(key in d for key in key_values_to_check)) :
+
+      raise Exception(f"Problem of key for the {i}-th dictionnary")
 
 
-def get_pooling_mapping(list_dict : List[Dict]) -> Tuple[List, Dict, np.ndarray] :
-    """
-    For the color of the following plot functions, we will need a
-    mapping of the value of the pooling values to the colors
+  # the x,y and z of the scatter in 3D
+  x = np.array([d['nb_parameters'] for d in list_dict])
+  y = np.array([d['mean_accuracy'] for d in list_dict])
+  z = np.array([d['homophily'] for d in list_dict])
 
-    To do so, this function return the mapping (a dictionnary) and
-    the list of all colors corresponding to the values of the pooling
-    """
 
     # the poolings will be used for the color of the points
     poolings = [d['pooling'] for d in list_dict]
@@ -238,3 +256,51 @@ def pairplot_from_dict(list_dict : List[Dict],
     return 
 
 
+
+
+def to_table(list_dict : List[Dict]) -> pd.DataFrame:
+  """
+  Convert a list of dictionaries into a formatted Pandas DataFrame for tabular presentation.
+  
+  Parameters:
+      list_dict (List[Dict]): A list of dictionaries containing the following keys:
+          - 'dataset': The name of the dataset.
+          - 'global_pooling_layer': The type of global pooling layer used.
+          - 'local_pooling_layer': The type of local pooling layer used.
+          - 'mean_accuracy': The mean accuracy value.
+          - 'std_accuracy': The standard deviation of accuracy.
+
+  Returns:
+      pd.DataFrame: A formatted Pandas DataFrame with columns 'dataset', 'pooling_layer', and 'accuracy'.
+          - 'dataset': Name of the dataset.
+          - 'pooling_layer': Concatenation of 'local_pooling_layer' and 'global_pooling_layer'.
+          - 'accuracy': Formatted string of mean accuracy ± standard deviation.
+
+  Example Usage:
+      list_dict = [
+          {"dataset": "Dataset A", "global_pooling_layer": "Avg", "local_pooling_layer": "Max", "mean_accuracy": 0.85, "std_accuracy": 0.03},
+          {"dataset": "Dataset B", "global_pooling_layer": "Sum", "local_pooling_layer": "Avg", "mean_accuracy": 0.92, "std_accuracy": 0.02}
+      ]
+      df = to_table(list_dict)
+      print(df)
+  
+  """
+  dic_results = {"dataset": [], "global_pooling_layer":[], "local_pooling_layer":[], "mean_accuracy":[], "std_accuracy":[]}
+
+  for dic in list_dict:
+      dic_results["dataset"].append(dic["dataset"])
+      dic_results["global_pooling_layer"].append(dic["global_pooling_layer"])
+      dic_results["local_pooling_layer"].append(dic["local_pooling_layer"])
+      dic_results["mean_accuracy"].append(dic["mean_accuracy"])
+      dic_results["std_accuracy"].append(dic["std_accuracy"])
+
+  df = pd.DataFrame(dic_results)
+
+  df["pooling_layer"] = df["local_pooling_layer"].astype(str).replace("None", "") + df["global_pooling_layer"]
+  df["accuracy"] = "$" + df["mean_accuracy"].apply("{:.3f}".format).astype(str) + "\pm" + df["std_accuracy"].apply("{:.3f}".format).astype(str) + "$"
+  df = df.drop(columns=["local_pooling_layer", "global_pooling_layer", "mean_accuracy", "std_accuracy"])
+  df = df.pivot(index='dataset', columns='pooling_layer', values='accuracy')
+  df = df.rename_axis(None, axis=1)
+  df = df.rename_axis(None, axis=0)
+
+  return df

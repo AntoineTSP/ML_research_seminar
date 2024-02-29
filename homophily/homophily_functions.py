@@ -19,6 +19,10 @@ def get_homophily(location, name_location,name_dataset,seed_id=12345):
     mode = 'a' if file_exists else 'w'
     
     dataset = location(root='data/' + str(name_location), name=name_dataset)
+    
+    size_dataset = len(dataset)
+    nb_class = dataset.num_classes
+    nb_features = dataset.num_features
 
     torch.manual_seed(seed_id)
     dataset = dataset.shuffle()
@@ -36,7 +40,8 @@ def get_homophily(location, name_location,name_dataset,seed_id=12345):
     homophily_edge_insensitive_test = round(homophily(test_dataset.edge_index, torch.argmax(test_dataset.x, dim=1), method='edge_insensitive'),3)
     
     line_csv = [
-    {"Name_Dataset": name_dataset, "Seed": seed_id,
+    {"Name_Dataset": name_dataset, "Size_dataset": size_dataset, 
+     "Nb_class": nb_class, "Nb_features": nb_features, "Seed": seed_id,
      "Homophily_edge_train": homophily_edge_train, "Homophily_edge_test": homophily_edge_test,
      "Homophily_node_train": homophily_node_train, "Homophily_node_test": homophily_node_test,
      "Homophily_edge_insensitive_train": homophily_edge_insensitive_train, "Homophily_edge_insensitive_test": homophily_edge_insensitive_test}
@@ -45,7 +50,7 @@ def get_homophily(location, name_location,name_dataset,seed_id=12345):
     # Writing to CSV file
     with open(csv_file, mode, newline='') as file:
         # Define column names
-        fieldnames = ["Name_Dataset", "Seed",
+        fieldnames = ["Name_Dataset", "Size_dataset","Nb_class","Nb_features", "Seed",
                       "Homophily_edge_train", "Homophily_edge_test",
                       "Homophily_node_train", "Homophily_node_test",
                       "Homophily_edge_insensitive_train", "Homophily_edge_insensitive_test"]
@@ -61,6 +66,9 @@ def get_homophily(location, name_location,name_dataset,seed_id=12345):
             writer.writerow(row)
 
     print("Name of the dataset: " + name_dataset)
+    print("Size of the dataset: " + str(size_dataset))
+    print("Number of features: " + str(nb_features))
+    print("Number of classes: " + str(nb_class))
     print(f'Number of training graphs: {len(train_dataset)}')
     print(f'Number of test graphs: {len(test_dataset)}')
     print("Homophily with the edge formula (train/test): " + str(homophily_edge_train) + " | " + str(homophily_edge_test))
