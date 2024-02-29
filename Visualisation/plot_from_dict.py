@@ -229,3 +229,54 @@ def to_table(list_dict : List[Dict]) -> pd.DataFrame:
   df = df.rename_axis(None, axis=0)
 
   return df
+
+def plot_losses(list_dict, train="train"):
+    for dict in list_dict:
+        if 'split 1' in dict:
+            fig = plt.figure()
+            ax = fig.add_subplot(1, 1, 1)
+            ax.plot(np.arange(len(dict['split 1']['train_losses'])), dict['split 1'][train + '_losses'])
+            ax.set_xlabel("Epochs")
+            ax.set_ylabel(train + " loss")
+            if dict["local_pooling_layer"] is not None:
+                ax.set_title(train + " loss across epochs with early stopping" +  "\n" +
+                            "for " + dict["dataset"] + " with " + dict['convolution_layer'] + 
+                             "," + dict["local_pooling_layer"] + " and " + dict["global_pooling_layer"])
+                plt.savefig("./Visualisation/results/losses/" + train + "/" + dict["dataset"] +
+                            "_"  + dict['convolution_layer'] + "_" + dict["local_pooling_layer"] +
+                            "_" + dict["global_pooling_layer"] + ".png")
+                plt.close()
+            else:
+                ax.set_title(train + " loss across epochs with early stopping" +  "\n" +
+                            "for " + dict["dataset"] + " with " + dict['convolution_layer'] +
+                             "," + "None " + " and " +  dict["global_pooling_layer"])
+                plt.savefig("./Visualisation/results/losses/" + train + "/" + dict["dataset"] +
+                            "_" +dict['convolution_layer'] + "_" +  "None_" +
+                            dict["global_pooling_layer"] + ".png")
+                plt.close()
+
+def plot_acc_parameters(list_dict):
+    datasets = set([dict['dataset'] for dict in list_dict])
+    for dataset in datasets:
+        plt.figure(figsize=(8, 6))
+        color_map = 'viridis'
+        color_index = 0
+        nb_parameters = []
+        mean_accuracy = []
+        for split in list_dict:
+            if split['dataset'] == dataset:
+                nb_parameters.append(split['nb_parameters'])
+                mean_accuracy.append(split['mean_accuracy'])
+                if split['local_pooling_layer'] is not None:
+                    plt.scatter(split['nb_parameters'], split['mean_accuracy'], 
+                                label=split['convolution_layer'] + "_" + split['global_pooling_layer'] +"_"+ split['local_pooling_layer'], 
+                                cmap="viridis")
+                else:
+                    plt.scatter(split['nb_parameters'], split['mean_accuracy'], 
+                                label=split['convolution_layer'] + "_" + split['global_pooling_layer'] +"_None", cmap="viridis")
+        plt.xlabel('Number of Parameters')
+        plt.ylabel('Mean Accuracy')
+        plt.title(f'Mean Accuracy vs Number of Parameters with Different Pooling Layers for {dataset}')
+        plt.legend(loc='lower right', bbox_to_anchor=(1.3, 0), borderaxespad=0.)
+        plt.savefig("./Visualisation/results/acc_parameters/" + dataset + ".png", bbox_inches='tight')
+        plt.show()
