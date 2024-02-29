@@ -10,9 +10,72 @@ import matplotlib.patches as mpatches
 from matplotlib import MatplotlibDeprecationWarning
 
 
-def plot_from_dict(list_dict : List[Dict], figsize : Tuple[int,int]) -> None :
+
+def get_pooling_mapping(list_dict : List[Dict]) -> Tuple[List, Dict, np.ndarray] :
+    """
+    For the color of the following plot functions, we will need a
+    mapping of the value of the pooling values to the colors
+
+    To do so, this function return the mapping (a dictionnary) and
+    the list of all colors corresponding to the values of the pooling
+    """
+
+    # the poolings will be used for the color of the points
+    poolings = [d['pooling'] for d in list_dict]
+    unique_poolings = np.unique(poolings)
+
+    # all the colors in matplotlib
+    # the functions used is deprecated but works in a simpler way, so we
+    # keep it and ignore the deprecation warning
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", category=MatplotlibDeprecationWarning)
+        existing_colors = plt.cm.get_cmap('tab10', len(unique_poolings))
+
+    color_mapping = {}
+    # creating a dictionnary that maps each value of pooling to a color
+    for i, value in enumerate(unique_poolings):
+        color_mapping[value] = existing_colors(i)
+        # mapping the values through the dictionnary
+
+    colors = np.array([color_mapping[value] for value in poolings])
+
+    return poolings,color_mapping, colors
+
+
+
+def get_convolution_mapping(list_dict : List[Dict]) -> Tuple[List, Dict, List] :
+  """
+  For the shape of the points of the following plot functions, we will
+  need a mapping of the value of the architecture to the colors
+
+  To do so, this function return the mapping (a dictionnary) and
+  the list of all shapes corresponding to the architecture
+  """
+   
+  # the convolutions will be used for the shape of the points
+  convolutions = [d['convolution_layer'] for d in list_dict]
+
+  if len(convolutions) > 41 :
+    raise Exception(f"Not enough possible values of shape for the convolutions : got {len(convolutions)} but expected 41 at most")
+  # same as for the colors: creating a mapping of the convolutions to the shapes
+  unique_convolutions = np.unique(convolutions)
+  existing_shapes = list(markers.MarkerStyle.markers.keys())
+  shape_mapping = {}
+
+  for i, value in enumerate(unique_convolutions):
+    shape_mapping[value] = existing_shapes[i]
+
+  shapes = [shape_mapping[value] for value in convolutions]
+
+  return convolutions, shape_mapping, shapes
+
+
+
+def plot_from_dict(list_dict : List[Dict], figsize : Tuple[int,int], **kwargs) -> None :
   """
   Plot the graph resulting from the list of dictionnary
+
+  **kwargs -> additional keyword arguments passed to matplotlib functions
 
   Raises an error if the desired keys are not present in a dictionnary
   """
@@ -20,7 +83,7 @@ def plot_from_dict(list_dict : List[Dict], figsize : Tuple[int,int]) -> None :
   key_values_to_check = ['nb_parameters',
                          'mean_accuracy',
                          'homophily',
-                         'global_pooling_layer',
+                         'pooling',
                          'convolution_layer',
                          'dataset']
 
@@ -37,39 +100,9 @@ def plot_from_dict(list_dict : List[Dict], figsize : Tuple[int,int]) -> None :
   z = np.array([d['homophily'] for d in list_dict])
 
 
-  # the poolings will be used for the color of the points
-  poolings = [d['global_pooling_layer'] for d in list_dict]
-  unique_poolings = np.unique(poolings)
+  _, color_mapping, colors = get_pooling_mapping(list_dict)
 
-  # all the colors in matplotlib
-  # the functions used is deprecated but works in a simpler way, so we
-  # keep it and ignore the deprecation warning
-  with warnings.catch_warnings():
-    warnings.filterwarnings("ignore", category=MatplotlibDeprecationWarning)
-    existing_colors = plt.cm.get_cmap('tab10', len(unique_poolings))
-
-  color_mapping = {}
-  # creating a dictionnary that maps each value of pooling to a color
-  for i, value in enumerate(unique_poolings):
-    color_mapping[value] = existing_colors(i)
-  # mapping the values through the dictionnary
-  colors = [color_mapping[value] for value in poolings]
-
-
-  # the convolutions will be used for the shape of the points
-  convolutions = [d['convolution_layer'] for d in list_dict]
-
-  if len(convolutions) > 41 :
-    raise Exception(f"Not enough possible values of shape for the convolutions : got {len(convolutions)} but expected 41 at most")
-  # same as for the colors: creating a mapping of the convolutions to the shapes
-  unique_convolutions = np.unique(convolutions)
-  existing_shapes = list(markers.MarkerStyle.markers.keys())
-  shape_mapping = {}
-
-  for i, value in enumerate(unique_convolutions):
-    shape_mapping[value] = existing_shapes[i]
-
-  shapes = [shape_mapping[value] for value in convolutions]
+  _, shape_mapping, shapes = get_convolution_mapping(list_dict)
 
 
   # scatter in 3D
@@ -90,7 +123,7 @@ def plot_from_dict(list_dict : List[Dict], figsize : Tuple[int,int]) -> None :
 
 
   for x_value, y_value, z_value, color, shape in zip(x, y, z, colors, shapes) :
-    ax.scatter(x_value, y_value, z_value, c=np.array(color).reshape((1,4)), marker=shape)
+    ax.scatter(x_value, y_value, z_value, c=color.reshape((1,4)), marker=shape, **kwargs)
 
   ax.legend(handles= legend_color + legend_shape)
 
@@ -103,12 +136,15 @@ def plot_from_dict(list_dict : List[Dict], figsize : Tuple[int,int]) -> None :
 
   plt.show()
 
+  return
+
 
 
 def pairplot_from_dict(list_dict : List[Dict], 
                        rows_to_plot : List[Tuple[str,str]],
                        dim_grid_subplots : Tuple[int,int],
-                       figsize : Tuple[int,int] | None = None) -> None :
+                       figsize : Tuple[int,int] | None = None,
+                       **kwargs) -> None :
         
     '''
     Plot all the in subfigures all the variables described in rows_to_plot
@@ -119,6 +155,8 @@ def pairplot_from_dict(list_dict : List[Dict],
 
     dim_grid_subplots -> the dimension of the grid of subplots (for instance (2,3) means that there
     are two rows and 3 columns)
+
+    **kwargs -> additional keyword arguments passed to matplotlib functions
 
     Raises error if some elements of the rows don't correspond to key values in list_dict,
     or if the number of elements of rows_to_plot don't fit the dimension of dim_grid_subplots
@@ -155,18 +193,35 @@ def pairplot_from_dict(list_dict : List[Dict],
                         f"is not consistent with the number of plots ({len(rows_to_plot)}) ")
     
 
-    fig, axs = plt.subplots(n_plot_rows, n_plot_cols, figsize=figsize)
+    _, color_mapping, colors = get_pooling_mapping(list_dict)
+    _, shape_mapping, shapes = get_convolution_mapping(list_dict)
+
+    colors_keys = list(color_mapping.keys())
+    color_values = list(color_mapping.values())
+
+    shape_keys = list(shape_mapping.keys())
+    shape_values = list(shape_mapping.values())
+
+
+    _, axs = plt.subplots(n_plot_rows, n_plot_cols, figsize=figsize)
 
     axs = axs.flatten()
 
     n_dict = len(list_dict)
 
+
     for ax, (key1, key2) in zip(axs, rows_to_plot) :
+        
+        legend_color = [mpatches.Patch(color=color_values[i], label=f"{colors_keys[i]}-pool") for i in range(len(colors_keys))]
+        legend_shape = [ax.scatter([], [], color='black', marker=shape_values[i], label=shape_keys[i]) for i in range(len(shape_keys))]
 
         x_values = [list_dict[i][key1] for i in range(n_dict)]
         y_values = [list_dict[i][key2] for i in range(n_dict)]
 
-        ax.scatter(x_values, y_values)
+        for x_value, y_value, color, shape in zip(x_values, y_values, colors, shapes) :
+          ax.scatter(x_value, y_value, c=color.reshape((1,4)), marker=shape, **kwargs)
+
+        ax.legend(handles= legend_color + legend_shape)
 
         ax.set_xlabel(key1)
         ax.set_ylabel(key2)
@@ -181,3 +236,5 @@ def pairplot_from_dict(list_dict : List[Dict],
     plt.show()
 
     return 
+
+
