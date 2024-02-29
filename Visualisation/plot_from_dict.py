@@ -210,21 +210,22 @@ def to_table(list_dict : List[Dict]) -> pd.DataFrame:
       print(df)
   
   """
-  dic_results = {"dataset": [], "global_pooling_layer":[], "local_pooling_layer":[], "mean_accuracy":[], "std_accuracy":[]}
+  dic_results = {"dataset": [], "global_pooling_layer":[], "local_pooling_layer":[], "convolution_layer":[], "mean_accuracy":[], "std_accuracy":[]}
 
   for dic in list_dict:
       dic_results["dataset"].append(dic["dataset"])
       dic_results["global_pooling_layer"].append(dic["global_pooling_layer"])
       dic_results["local_pooling_layer"].append(dic["local_pooling_layer"])
+      dic_results["convolution_layer"].append(dic["convolution_layer"])
       dic_results["mean_accuracy"].append(dic["mean_accuracy"])
       dic_results["std_accuracy"].append(dic["std_accuracy"])
 
   df = pd.DataFrame(dic_results)
 
-  df["pooling_layer"] = df["local_pooling_layer"].astype(str).replace("None", "") + df["global_pooling_layer"]
+  df["layer"] = df["convolution_layer"] + df["local_pooling_layer"].astype(str).replace("None", "") + df["global_pooling_layer"]
   df["accuracy"] = "$" + df["mean_accuracy"].apply("{:.3f}".format).astype(str) + "\pm" + df["std_accuracy"].apply("{:.3f}".format).astype(str) + "$"
   df = df.drop(columns=["local_pooling_layer", "global_pooling_layer", "mean_accuracy", "std_accuracy"])
-  df = df.pivot(index='dataset', columns='pooling_layer', values='accuracy')
+  df = df.pivot(index='dataset', columns='layer', values='accuracy')
   df = df.rename_axis(None, axis=1)
   df = df.rename_axis(None, axis=0)
 

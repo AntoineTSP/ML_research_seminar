@@ -55,8 +55,7 @@ class Trainer():
           self.optimizer.step()  # Update parameters based on gradients.
           self.optimizer.zero_grad()  # Clear gradients.
 
-  @staticmethod
-  def test(model, loader, device):
+  def test(self, model, loader, device):
       model.eval()
       loss_epoch = []
       correct = 0
