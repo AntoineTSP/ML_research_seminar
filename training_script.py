@@ -10,6 +10,9 @@ import numpy as np
 import json
 import yaml
 import argparse
+import time
+from tqdm import tqdm
+from IPython.display import clear_output
 
 class Trainer():
   
@@ -69,6 +72,8 @@ class Trainer():
       return correct / len(loader.dataset), np.mean(loss_epoch)  # Derive ratio of correct predictions.
 
   def training_loop(self):
+    start = time.time()
+
     train_losses = []
     val_losses = []
     train_accuracies = []
@@ -76,7 +81,9 @@ class Trainer():
     best_acc = 0
     min_val_loos = np.inf
     iterations_WO_improvements = 0
-    for epoch in range(1, self.nb_max_epochs):
+    with tqdm(range(1, self.nb_max_epochs), unit='epoch') as bar:
+      for epoch in range(1, self.nb_max_epochs):
+        bar.set_description(f'Epoch {epoch}')
         self.train()
         train_acc, train_loss = self.test(self.model, self.train_loader, self.device)
         val_acc, val_loss = self.test(self.model, self.val_loader, self.device)
@@ -84,6 +91,9 @@ class Trainer():
         val_losses.append(val_loss)
         train_accuracies.append(train_acc)
         val_accuracies.append(val_acc)
+        bar.set_postfix(train_acc=train_acc, val_acc=val_acc)
+        bar.update(1)
+        clear_output(wait=False)
 
         # Early stopping
         if val_acc >= best_acc:
@@ -103,7 +113,8 @@ class Trainer():
 
     test_acc, _ = self.test(best_model, self.test_loader, self.device)
     last_epoch = epoch
-    return best_model, test_acc, train_losses, val_losses, train_accuracies, val_accuracies, last_epoch, min_val_loss, best_acc
+    stop = time.time()
+    return best_model, test_acc, train_losses, val_losses, train_accuracies, val_accuracies, last_epoch, min_val_loss, best_acc, (stop-start)/last_epoch
 
 
 def train_model_from_config(file_path):
@@ -158,13 +169,14 @@ def train_model_from_config(file_path):
     trainer = Trainer(dataset, batch_size, lr, conv_layer, global_pooling_layer, local_pooling_layer, attention_heads, hidden_channels, max_epochs, patience, verbose, device, alpha)
     
     # Model training
-    best_model, test_acc, train_losses, val_losses, train_accuracies, val_accuracies, last_epoch, min_val_loss, best_acc = trainer.training_loop()
+    best_model, test_acc, train_losses, val_losses, train_accuracies, val_accuracies, last_epoch, min_val_loss, best_acc, train_time = trainer.training_loop()
     result["split "+str(i+1)] = {"train_losses":train_losses,
                                "val_losses":val_losses,
                                "train_accuracies":train_accuracies,
                                "val_accuracies":val_accuracies,
                                "test_accuracy":test_acc,
-                               "last_epoch":last_epoch}
+                               "last_epoch":last_epoch, 
+                               "train_time_per_epoch": train_time}
     if verbose > 0:
       print(f'Model number: {i:02d}, Train acc: {train_accuracies[-1]:.4f}, Test Acc: {test_acc:.4f}, stopped at epoch {last_epoch} -> best val loss: {min_val_loss:.4f}, best val acc: {best_acc:.4f}')
     test_accuracy_list.append(test_acc)
