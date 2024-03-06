@@ -463,13 +463,6 @@ def plot_losses(list_dict, train="train"):
 
 
 def plot_acc_parameters(list_dict):
-<<<<<<< HEAD
-    datasets = set([dict["dataset"] for dict in list_dict])
-    for dataset in datasets:
-        plt.figure(figsize=(8, 6))
-        color_map = "viridis"
-        color_index = 0
-=======
     if not list_dict:
         print("Error: Empty list")
         return
@@ -479,88 +472,10 @@ def plot_acc_parameters(list_dict):
         plt.figure(figsize=(8, 6))
         colors = plt.cm.hsv(np.linspace(0, 1, 100))  # Define 15 different colors
         color_map = plt.cm.colors.ListedColormap(colors)  # Create a custom colormap
->>>>>>> 5256b4ae65e7de0adc7717498c59006df1d9223c
         nb_parameters = []
         mean_accuracy = []
         labels = set()
         for split in list_dict:
-<<<<<<< HEAD
-            if split["dataset"] == dataset:
-                nb_parameters.append(split["nb_parameters"])
-                mean_accuracy.append(split["mean_accuracy"])
-                if split["local_pooling_layer"] is not None:
-                    plt.scatter(
-                        split["nb_parameters"],
-                        split["mean_accuracy"],
-                        label=split["convolution_layer"]
-                        + "_"
-                        + split["global_pooling_layer"]
-                        + "_"
-                        + split["local_pooling_layer"],
-                        cmap="viridis",
-                    )
-                else:
-                    plt.scatter(
-                        split["nb_parameters"],
-                        split["mean_accuracy"],
-                        label=split["convolution_layer"]
-                        + "_"
-                        + split["global_pooling_layer"]
-                        + "_None",
-                        cmap="viridis",
-                    )
-        plt.xlabel("Number of Parameters")
-        plt.ylabel("Mean Accuracy")
-        plt.title(
-            f"Mean Accuracy vs Number of Parameters with Different Pooling Layers for {dataset}"
-        )
-        plt.legend(loc="lower right", bbox_to_anchor=(1.3, 0), borderaxespad=0.0)
-        plt.savefig(
-            "./Visualisation/results/acc_parameters/" + dataset + ".png",
-            bbox_inches="tight",
-        )
-        plt.show()
-
-
-def plot_accuracy_vs_homophily(list_dict: List[Dict], cmap: str = "tab20", **kwargs):
-    """
-    Plot accuracy = f(homophily) for different configurations (pooling and architecture)
-    """
-    # first create a dictionary that maps each configuration
-    # to the tuple (homophily, mean_accuracy)
-    config_data = {}
-
-    for item in list_dict:
-        config_key = f"{item['global_pooling_layer']}+{item.get('local_pooling_layer', 'None')}+{item['convolution_layer']}"
-
-        if config_key not in config_data:
-            config_data[config_key] = []
-
-        config_data[config_key].append((item["homophily"], item["mean_accuracy"]))
-
-    n_colors = len(config_data)
-    colors = [plt.get_cmap(cmap)(i) for i in range(n_colors)]
-
-    plt.figure(figsize=(10, 6))
-    for (config, points), color in zip(config_data.items(), colors):
-        homophilies = [point[0] for point in points]
-        accuracies = [point[1] for point in points]
-        plt.scatter(
-            homophilies,
-            accuracies,
-            label=config,
-            c=np.array(color).reshape((1, 4)),
-            marker="o",
-            **kwargs,
-        )
-
-    plt.xlabel("Homophily")
-    plt.ylabel("Mean Accuracy")
-    plt.title("Mean Accuracy vs Homophily for Each Configuration")
-    plt.legend(bbox_to_anchor=(1.05, 1), loc="upper left", borderaxespad=0.0)
-    plt.tight_layout()
-    plt.show()
-=======
             if split.get('dataset') == dataset:
                 nb_parameters.append(split.get('nb_parameters', 0))
                 mean_accuracy.append(split.get('mean_accuracy', 0))
@@ -759,4 +674,3 @@ def plot_acc_and_loss(list_dict, train="train"):
                             "_" +dict['convolution_layer'] + "_" +  "None_" +
                             dict["global_pooling_layer"] + ".png")
                 plt.close()
->>>>>>> 5256b4ae65e7de0adc7717498c59006df1d9223c
