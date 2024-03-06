@@ -275,15 +275,22 @@ def to_table(list_dict : List[Dict]) -> pd.DataFrame:
       print(df)
   
   """
-  dic_results = {"dataset": [], "global_pooling_layer":[], "local_pooling_layer":[], "convolution_layer":[], "mean_accuracy":[], "std_accuracy":[]}
+  dic_results = {"dataset": [], "global_pooling_layer":[], "local_pooling_layer":[], "convolution_layer":[], "mean_accuracy":[], "std_accuracy":[], "training_time":[]}
 
   for dic in list_dict:
-      dic_results["dataset"].append(dic["dataset"])
-      dic_results["global_pooling_layer"].append(dic["global_pooling_layer"])
-      dic_results["local_pooling_layer"].append(dic["local_pooling_layer"])
-      dic_results["convolution_layer"].append(dic["convolution_layer"])
-      dic_results["mean_accuracy"].append(dic["mean_accuracy"])
-      dic_results["std_accuracy"].append(dic["std_accuracy"])
+        dic_results["dataset"].append(dic["dataset"])
+        dic_results["global_pooling_layer"].append(dic["global_pooling_layer"])
+        dic_results["local_pooling_layer"].append(dic["local_pooling_layer"])
+        dic_results["convolution_layer"].append(dic["convolution_layer"])
+        dic_results["mean_accuracy"].append(dic["mean_accuracy"])
+        dic_results["std_accuracy"].append(dic["std_accuracy"])
+        training_time = 0
+        for i in range(1, 11):
+            try:
+                training_time += dic["split "+str(i)]["train_time_per_epoch"]*dic["split "+str(i)]["last_epoch"]
+            except KeyError:
+                training_time += 0
+        dic_results["training_time"].append(training_time/10)
 
   df = pd.DataFrame(dic_results)
 
@@ -293,8 +300,12 @@ def to_table(list_dict : List[Dict]) -> pd.DataFrame:
   df.loc[indexes_to_bold, "accuracy"] = "$\\bm{" + df.loc[indexes_to_bold, "mean_accuracy"].apply("{:.3f}".format).astype(str) + "\pm" + df.loc[indexes_to_bold, "std_accuracy"].apply("{:.3f}".format).astype(str) + "}$"
   df = df.drop(columns=["mean_accuracy", "std_accuracy"])
   df = df.rename(columns={'convolution_layer': 'Conv', 'local_pooling_layer': 'Local', 'global_pooling_layer': 'Global', 'dataset': 'Dataset'})
-  df = df.pivot(index=['Conv', "Local", 'Global'], columns='Dataset', values='accuracy')
-  df = df.rename_axis(None, axis=1)
+  df = df.pivot(index=['Conv', "Local", 'Global'], columns='Dataset', values=['accuracy', 'training_time'])
+  training_time = df["training_time"].mean(axis=1).copy().astype(int).astype(str)
+  df = df.drop(columns=["training_time"])
+  df.columns = df.columns.droplevel(0)
+  df = df.rename_axis(None, axis=1)  
+  df["Training Time"] = training_time
   return df
 
 def plot_bar_dataset(

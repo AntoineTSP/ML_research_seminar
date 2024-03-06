@@ -1,4 +1,4 @@
-from torch_geometric.nn import GCNConv, GAT, GINConv, global_mean_pool, global_max_pool, SAGPooling, TopKPooling, EdgePooling
+from torch_geometric.nn import GCNConv, GATConv, GINConv, global_mean_pool, global_max_pool, SAGPooling, TopKPooling, EdgePooling
 from model.mewisPool_layer import MEWISPool, MLP
 
 def global_pooling_selection(layer : str):
@@ -36,7 +36,7 @@ def conv_selection(layer : str, attention_heads:int):
     if layer == "GCN":
         return GCNConv
     elif layer == "GAT":
-        return lambda in_channels,hidden_channels:GAT(in_channels,hidden_channels,num_layers=attention_heads)
+        return lambda in_channels,hidden_channels:GATConv(in_channels,hidden_channels,num_layers=attention_heads)
     elif layer == "GINConv":
         return lambda in_channels, hidden_channels: GINConv(MLP(input_dim=in_channels, hidden_dim=hidden_channels, output_dim=hidden_channels, enhance=True))
     else:
