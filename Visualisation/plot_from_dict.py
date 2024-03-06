@@ -297,13 +297,14 @@ def to_table(list_dict : List[Dict]) -> pd.DataFrame:
 
   df = pd.DataFrame(dic_results)
 
-  df["layer"] = df["convolution_layer"] + df["local_pooling_layer"].astype(str).replace("None", "") + df["global_pooling_layer"]
+  df["local_pooling_layer"] = df["local_pooling_layer"].astype(str)
+  indexes_to_bold = df.groupby("dataset")["mean_accuracy"].idxmax()
   df["accuracy"] = "$" + df["mean_accuracy"].apply("{:.3f}".format).astype(str) + "\pm" + df["std_accuracy"].apply("{:.3f}".format).astype(str) + "$"
-  df = df.drop(columns=["local_pooling_layer", "global_pooling_layer", "mean_accuracy", "std_accuracy"])
-  df = df.pivot(index='dataset', columns='layer', values='accuracy')
+  df.loc[indexes_to_bold, "accuracy"] = "$\\bm{" + df.loc[indexes_to_bold, "mean_accuracy"].apply("{:.3f}".format).astype(str) + "\pm" + df.loc[indexes_to_bold, "std_accuracy"].apply("{:.3f}".format).astype(str) + "}$"
+  df = df.drop(columns=["mean_accuracy", "std_accuracy"])
+  df = df.rename(columns={'convolution_layer': 'Conv', 'local_pooling_layer': 'Local', 'global_pooling_layer': 'Global', 'dataset': 'Dataset'})
+  df = df.pivot(index=['Conv', "Local", 'Global'], columns='Dataset', values='accuracy')
   df = df.rename_axis(None, axis=1)
-  df = df.rename_axis(None, axis=0)
-
   return df
 
 def plot_losses(list_dict, train="train"):
