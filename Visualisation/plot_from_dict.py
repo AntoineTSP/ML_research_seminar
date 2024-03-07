@@ -314,7 +314,7 @@ def to_table(list_dict : List[Dict]) -> pd.DataFrame:
   return df
 
 def plot_bar_dataset(
-    list_dict: List[Dict], cmap: str = "tab10", n_colors: int = 5, **kwargs
+    list_dict: List[Dict], cmap: str = "tab10", n_colors: int = 10, **kwargs
 ):
 
     # first, create a dictionnary whose keys are the dataset and values are
