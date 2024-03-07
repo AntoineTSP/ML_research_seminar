@@ -301,7 +301,7 @@ def to_table(list_dict : List[Dict]) -> pd.DataFrame:
   df = df.drop(columns=["mean_accuracy", "std_accuracy"])
   df = df.rename(columns={'convolution_layer': 'Conv', 'local_pooling_layer': 'Local', 'global_pooling_layer': 'Global', 'dataset': 'Dataset'})
   df = df.pivot(index=['Conv', "Local", 'Global'], columns='Dataset', values=['accuracy', 'training_time'])
-  training_time = df["training_time"].mean(axis=1).copy().astype(int).astype(str)
+  training_time = df["training_time"].sum(axis=1).copy().astype(int).astype(str)
   df = df.drop(columns=["training_time"])
   df.columns = df.columns.droplevel(0)
   df = df.rename_axis(None, axis=1)  
