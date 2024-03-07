@@ -68,7 +68,8 @@ def plot_from_dict(list_dict: List[Dict], figsize: Tuple[int, int] = (10,6), **k
     """
     Plot the graph resulting from the list of dictionnary
 
-    **kwargs -> additional keyword arguments passed to matplotlib functions
+    figsize -> width and height of the figure (figsize argument matplotlib figure function)
+    **kwargs -> additional keyword arguments passed to matplotlib scatter function
 
     Raises an error if the desired keys are not present in a dictionnary
     """
@@ -154,8 +155,9 @@ def pairplot_from_dict(
     kwargs2 : Dict[str, Any] = {},
 ) -> None:
     """
-    Plot all the in subfigures all the variables described in rows_to_plot
+    Plot all the variables described in rows_to_plot in subfigures
 
+    
     rows_to_plot -> All the variables of the dictionnaries of list_dict we want to
     plot (for instance, denoting (x,y) the first entry of rows_to_plot, the first plot will
     be dict[x] for the x-axis and dict[y] for the y-axis, for dict in list_dict)
@@ -163,7 +165,10 @@ def pairplot_from_dict(
     dim_grid_subplots -> the dimension of the grid of subplots (for instance (2,3) means that there
     are two rows and 3 columns)
 
-    **kwargs -> additional keyword arguments passed to matplotlib functions
+    figsize -> width and height of the figure (figsize argument matplotlib figure function)
+
+    **kwargs1 -> additional keyword arguments passed to matplotlib scatter function
+    **kwargs2 -> additional keyword arguments passed to matplotlib legend function
 
     Raises error if some elements of the rows don't correspond to key values in list_dict,
     or if the number of elements of rows_to_plot don't fit the dimension of dim_grid_subplots
