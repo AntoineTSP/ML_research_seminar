@@ -16,7 +16,7 @@ def get_convolution_mapping(list_dict: List[Dict]) -> Tuple[List, Dict, List]:
     For the shape of the points of the following plot functions, we will
     need a mapping of the value of the architecture to the shapes
 
-    To do so, this function return the mapping (a dictionnary) and
+    To do so, this function return the mapping (a dictionary) and
     the list of all shapes corresponding to the architecture
     """
 
@@ -46,7 +46,7 @@ def get_pooling_mapping(list_dict: List[Dict]) -> Tuple[List, Dict, List]:
     For the color of the points of the following plot functions, we will
     need a mapping of the pooling to the colors
 
-    To do so, this function return the mapping (a dictionnary) and
+    To do so, this function return the mapping (a dictionary) and
     the list of all colors corresponding to the pooling
     """
     poolings = [d["pooling"] for d in list_dict]
@@ -55,12 +55,12 @@ def get_pooling_mapping(list_dict: List[Dict]) -> Tuple[List, Dict, List]:
     existing_colors = plt.get_cmap("tab10", len(unique_poolings))
 
     color_mapping = {}
-    # creating a dictionnary that maps each value of pooling to a color
+    # creating a dictionary that maps each value of pooling to a color
 
     for i, value in enumerate(unique_poolings):
         color_mapping[value] = existing_colors(i)
 
-    # mapping the values through the dictionnary
+    # mapping the values through the dictionary
     colors = [color_mapping[value] for value in poolings]
 
     return poolings, color_mapping, colors
@@ -70,14 +70,14 @@ def plot_from_dict(
     list_dict: List[Dict], figsize: Tuple[int, int] = (10, 6), **kwargs
 ) -> None:
     """
-    Plot the graph resulting from the list of dictionnary
+    Plot the graph resulting from the list of dictionary
 
     figsize -> width and height of the figure (figsize argument matplotlib figure function)
     **kwargs -> additional keyword arguments passed to matplotlib scatter function
 
-    Raises an error if the desired keys are not present in a dictionnary
+    Raises an error if the desired keys are not present in a dictionary
     """
-    # checking that there is no problem of keys in each given dictionnary
+    # checking that there is no problem of keys in each given dictionary
     key_values_to_check = [
         "nb_parameters",
         "mean_accuracy",
@@ -91,7 +91,7 @@ def plot_from_dict(
 
         if not (all(key in d for key in key_values_to_check)):
 
-            raise Exception(f"Problem of key for the {i}-th dictionnary")
+            raise Exception(f"Problem of key for the {i}-th dictionary")
 
     # the x,y and z of the scatter in 3D
     x = np.array([d["nb_parameters"] for d in list_dict])
@@ -204,7 +204,7 @@ def pairplot_from_dict(
 
     for i, (key1, key2) in enumerate(rows_to_plot):
 
-        # check if key1 is present in the keys of all dictionnary
+        # check if key1 is present in the keys of all dictionary
         if not (all(key1 in key for key in keys_list_dict)):
 
             raise Exception(
@@ -432,7 +432,7 @@ def plot_bar_dataset(
         (if None, there is no stacking)
     """
 
-    # first, create a dictionnary whose keys are the dataset and values are
+    # first, create a dictionary whose keys are the dataset and values are
     # the list of all element from list_dict for this dataset
     data_by_dataset = {}
 
@@ -638,12 +638,50 @@ def plot_losses(list_dict, train="train"):
                 plt.close()
 
 
+def sort_list_dict(list_dict):
+    """ Sort the list of dictionaries in alphabetical order with respect to
+    architecture_localpooling_globalpooling
+
+    Args:
+        list_dict (list): list of dictionaries of runs
+
+    Returns:
+        list: sorted list
+    """
+    list_dict__architecture_as_key = {
+        f"{d['convolution_layer']}_{d['local_pooling_layer']}_{d['global_pooling_layer']}_{d['dataset']}": d for d in list_dict
+    }
+    list_dict__architecture_as_key = dict(sorted(list_dict__architecture_as_key.items()))
+    return list(list_dict__architecture_as_key.values())
+
+def get_worst_best_acc_per_dataset(list_dict, datasets):
+    best_accs = {}
+    worst_accs = {}
+    for d in list_dict:
+        dataset = d.get('dataset')
+        mean = d.get('mean_accuracy')
+        if dataset not in best_accs.keys():
+            best_accs[dataset] = (mean, d)
+            worst_accs[dataset] = (mean, d)
+        else:
+            best_mean_dataset = best_accs[dataset][0]
+            if mean > best_mean_dataset:
+                best_accs[dataset] = (mean, d)
+            worst_mean_dataset = worst_accs[dataset][0]
+            if mean < worst_mean_dataset:
+                worst_accs[dataset] = (mean, d)
+    return worst_accs, best_accs
+
+
 def plot_acc_parameters(list_dict):
     if not list_dict:
         print("Error: Empty list")
         return
 
-    datasets = set(d["dataset"] for d in list_dict)
+    list_dict = sort_list_dict(list_dict)
+    datasets = set(d['dataset'] for d in list_dict)
+    worst_acc_per_dataset, best_acc_per_dataset = get_worst_best_acc_per_dataset(list_dict, datasets)
+
     for dataset in datasets:
         plt.figure(figsize=(8, 6))
         colors = plt.cm.hsv(np.linspace(0, 1, 100))  # Define 15 different colors
@@ -666,51 +704,32 @@ def plot_acc_parameters(list_dict):
         for split in list_dict:
             if split.get("dataset") == dataset:
                 label = f"{split.get('convolution_layer')}_{split.get('local_pooling_layer', 'None')}"
-                color = label_color_dict.get(
-                    label, "black"
-                )  # Use black color for labels not in sorted_labels
-                # split.get('global_pooling_layer')
-                # print(split.get("global_pooling_layer"))
-                if split.get("global_pooling_layer") == "mean":
-                    plt.scatter(
-                        split.get("nb_parameters", 0),
-                        split.get("mean_accuracy", 0),
-                        label=label if label in sorted_labels else None,
-                        color=color,
-                        marker="^",
-                    )
-                if split.get("global_pooling_layer") == "max":
-                    plt.scatter(
-                        split.get("nb_parameters", 0),
-                        split.get("mean_accuracy", 0),
-                        label=label if label in sorted_labels else None,
-                        color=color,
-                        marker="o",
-                    )
+                color = label_color_dict.get(label, 'black')  # Use black color for labels not in sorted_labels
+                plt.scatter(split.get('nb_parameters', 0), split.get('mean_accuracy', 0),
+                            label=label if label in sorted_labels else None, color=color, alpha=0.6,
+                            marker='^' if split.get("global_pooling_layer") == "mean" else 'o')
+                # check if this corresponds to the best/worst architecture
+                if split == best_acc_per_dataset[dataset][1]:
+                    plt.text(split.get('nb_parameters', 0)+0.001, split.get('mean_accuracy', 0)+0.001, f"{label}: {split.get('mean_accuracy', 0):.3f}", fontsize=9)
+                if split == worst_acc_per_dataset[dataset][1]:
+                    plt.text(split.get('nb_parameters', 0)-0.001, split.get('mean_accuracy', 0)-0.001, f"{label}: {split.get('mean_accuracy', 0):.3f}", fontsize=9)
 
-        plt.xlabel("Number of Parameters")
-        plt.ylabel("Mean Accuracy")
-        plt.title(
-            f"Mean Accuracy vs Number of Parameters with Different Pooling Layers for {dataset} \n Triangle = mean ending pooling | Circle = max ending pooling"
-        )
-        plt.legend(
-            loc="lower right",
-            bbox_to_anchor=(1.5, 0),
-            borderaxespad=0.0,
-            prop={"size": 10},
-        )
-        plt.savefig(
-            f"./Visualisation/results/acc_parameters/{dataset}.png", bbox_inches="tight"
-        )
+        plt.xlabel('Number of Parameters')
+        plt.ylabel('Mean Accuracy')
+        plt.title(f'Mean Accuracy vs Number of Parameters for {dataset} \n Triangle = mean ending pooling | Circle = max ending pooling')
+        plt.legend(loc='lower right', bbox_to_anchor=(1.4, 0), borderaxespad=0., prop={'size': 10})
+        plt.savefig(f"./Visualisation/results/acc_parameters/{dataset}.png", bbox_inches='tight')
         plt.close()
 
-
-def plot_acc_time_epoch(list_dict):
+def plot_acc_time_epoch(list_dict, time_per_epoch=True, xlabel='Train time per epoch (s)',
+                        title='Mean Accuracy vs Train time per epoch', save_dir='acc_train_time_per_epoch'):
     if not list_dict:
         print("Error: Empty list")
         return
 
-    datasets = set(d["dataset"] for d in list_dict)
+    list_dict = sort_list_dict(list_dict)
+    datasets = set(d['dataset'] for d in list_dict)
+    worst_acc_per_dataset, best_acc_per_dataset = get_worst_best_acc_per_dataset(list_dict, datasets)
     for dataset in datasets:
         plt.figure(figsize=(8, 6))
         colors = plt.cm.hsv(np.linspace(0, 1, 100))  # Define 15 different colors
@@ -737,121 +756,28 @@ def plot_acc_time_epoch(list_dict):
             if "split 1" in split:
                 if split.get("dataset") == dataset:
                     label = f"{split.get('convolution_layer')}_{split.get('local_pooling_layer', 'None')}"
-                    color = label_color_dict.get(
-                        label, "black"
-                    )  # Use black color for labels not in sorted_labels
-                    # split.get('global_pooling_layer')
-                    # print(split.get("global_pooling_layer"))
-                    if split.get("global_pooling_layer") == "mean":
-                        plt.scatter(
-                            split["split 1"].get("train_time_per_epoch", 0),
-                            split.get("mean_accuracy", 0),
-                            label=label if label in sorted_labels else None,
-                            color=color,
-                            marker="^",
-                        )
-                    if split.get("global_pooling_layer") == "max":
-                        plt.scatter(
-                            split["split 1"].get("train_time_per_epoch", 0),
-                            split.get("mean_accuracy", 0),
-                            label=label if label in sorted_labels else None,
-                            color=color,
-                            marker="o",
-                        )
-
-        plt.xlabel("Train time per epoch (s)")
-        plt.ylabel("Mean Accuracy")
-        plt.title(
-            f"Mean Accuracy vs Train time per epoch with Different Pooling Layers for {dataset} \n Triangle = mean ending pooling | Circle = max ending pooling"
-        )
-        plt.legend(
-            loc="lower right",
-            bbox_to_anchor=(1.5, 0),
-            borderaxespad=0.0,
-            prop={"size": 10},
-        )
-        plt.savefig(
-            f"./Visualisation/results/acc_train_time_per_epoch/{dataset}.png",
-            bbox_inches="tight",
-        )
+                    color = label_color_dict.get(label, 'black')  # Use black color for labels not in sorted_labels
+                    time_ = split['split 1'].get('train_time_per_epoch', 0) if time_per_epoch else split['split 1'].get('train_time_per_epoch', 0) * len(split['split 1']['train_losses']) / 60
+                    plt.scatter(time_, split.get('mean_accuracy', 0),
+                                label=label if label in sorted_labels else None, color=color, alpha=0.6,
+                                marker='^' if split.get("global_pooling_layer") == "mean" else 'o')
+                    # check if this corresponds to the best architecture
+                    if split == best_acc_per_dataset[dataset][1]:
+                        plt.text(time_+0.001, split.get('mean_accuracy', 0)+0.001, f"{label}: {split.get('mean_accuracy', 0):.3f}", fontsize=9)
+                    if split == worst_acc_per_dataset[dataset][1]:
+                        plt.text(time_-0.001, split.get('mean_accuracy', 0)-0.001, f"{label}: {split.get('mean_accuracy', 0):.3f}", fontsize=9)
+                    
+        plt.xlabel(xlabel)
+        plt.ylabel('Mean Accuracy')
+        plt.title(f'{title} for {dataset} \n Triangle = mean ending pooling | Circle = max ending pooling')
+        plt.legend(loc='lower right', bbox_to_anchor=(1.4, 0), borderaxespad=0., prop={'size': 10})
+        plt.savefig(f"./Visualisation/results/{save_dir}/{dataset}.png", bbox_inches='tight')
         plt.close()
 
 
 def plot_acc_full_train_time(list_dict):
-    if not list_dict:
-        print("Error: Empty list")
-        return
-
-    datasets = set(d["dataset"] for d in list_dict)
-    for dataset in datasets:
-        plt.figure(figsize=(8, 6))
-        colors = plt.cm.hsv(np.linspace(0, 1, 100))  # Define 15 different colors
-        color_map = plt.cm.colors.ListedColormap(colors)  # Create a custom colormap
-        train_time = []
-        mean_accuracy = []
-        labels = set()
-        for split in list_dict:
-            if "split 1" in split:
-                if split.get("dataset") == dataset:
-                    train_time.append(
-                        split["split 1"].get("train_time_per_epoch", 0)
-                        * len(split["split 1"]["train_losses"])
-                    )
-                    mean_accuracy.append(split.get("mean_accuracy", 0))
-                    label = f"{split.get('convolution_layer')}_{split.get('local_pooling_layer', 'None')}"
-                    labels.add(label)
-
-        sorted_labels = sorted(labels)  # Sort labels alphabetically
-
-        colors = [color_map(i / len(sorted_labels)) for i in range(len(sorted_labels))]
-        label_color_dict = {label: color for label, color in zip(sorted_labels, colors)}
-
-        for split in list_dict:
-            if "split 1" in split:
-                if split.get("dataset") == dataset:
-                    label = f"{split.get('convolution_layer')}_{split.get('local_pooling_layer', 'None')}"
-                    color = label_color_dict.get(
-                        label, "black"
-                    )  # Use black color for labels not in sorted_labels
-                    # split.get('global_pooling_layer')
-                    # print(split.get("global_pooling_layer"))
-                    if split.get("global_pooling_layer") == "mean":
-                        plt.scatter(
-                            split["split 1"].get("train_time_per_epoch", 0)
-                            * len(split["split 1"]["train_losses"])
-                            / 60,
-                            split.get("mean_accuracy", 0),
-                            label=label if label in sorted_labels else None,
-                            color=color,
-                            marker="^",
-                        )
-                    if split.get("global_pooling_layer") == "max":
-                        plt.scatter(
-                            split["split 1"].get("train_time_per_epoch", 0)
-                            * len(split["split 1"]["train_losses"])
-                            / 60,
-                            split.get("mean_accuracy", 0),
-                            label=label if label in sorted_labels else None,
-                            color=color,
-                            marker="o",
-                        )
-
-        plt.xlabel("Full train time (min)")
-        plt.ylabel("Mean Accuracy")
-        plt.title(
-            f"Mean Accuracy vs Full train time with Different Pooling Layers for {dataset} \n Triangle = mean ending pooling | Circle = max ending pooling"
-        )
-        plt.legend(
-            loc="lower right",
-            bbox_to_anchor=(1.5, 0),
-            borderaxespad=0.0,
-            prop={"size": 10},
-        )
-        plt.savefig(
-            f"./Visualisation/results/acc_full_train_time/{dataset}.png",
-            bbox_inches="tight",
-        )
-        plt.close()
+    plot_acc_time_epoch(list_dict, time_per_epoch=False, xlabel='Full train time (min)',
+                        title='Mean Accuracy vs Full train time', save_dir='acc_full_train_time')
 
 
 def plot_acc(list_dict, train="train"):
