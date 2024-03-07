@@ -251,81 +251,70 @@ def pairplot_from_dict(
     # Show the plot
     plt.show()
 
-    return
+    return 
 
+def to_table(list_dict : List[Dict]) -> pd.DataFrame:
+  """
+  Convert a list of dictionaries into a formatted Pandas DataFrame for tabular presentation.
+  
+  Parameters:
+      list_dict (List[Dict]): A list of dictionaries containing the following keys:
+          - 'dataset': The name of the dataset.
+          - 'global_pooling_layer': The type of global pooling layer used.
+          - 'local_pooling_layer': The type of local pooling layer used.
+          - 'mean_accuracy': The mean accuracy value.
+          - 'std_accuracy': The standard deviation of accuracy.
 
-def to_table(list_dict: List[Dict]) -> pd.DataFrame:
-    """
-    Convert a list of dictionaries into a formatted Pandas DataFrame for tabular presentation.
+  Returns:
+      pd.DataFrame: A formatted Pandas DataFrame with columns 'dataset', 'pooling_layer', and 'accuracy'.
+          - 'dataset': Name of the dataset.
+          - 'pooling_layer': Concatenation of 'local_pooling_layer' and 'global_pooling_layer'.
+          - 'accuracy': Formatted string of mean accuracy ± standard deviation.
 
-    Parameters:
-        list_dict (List[Dict]): A list of dictionaries containing the following keys:
-            - 'dataset': The name of the dataset.
-            - 'global_pooling_layer': The type of global pooling layer used.
-            - 'local_pooling_layer': The type of local pooling layer used.
-            - 'mean_accuracy': The mean accuracy value.
-            - 'std_accuracy': The standard deviation of accuracy.
+  Example Usage:
+      list_dict = [
+          {"dataset": "Dataset A", "global_pooling_layer": "Avg", "local_pooling_layer": "Max", "mean_accuracy": 0.85, "std_accuracy": 0.03},
+          {"dataset": "Dataset B", "global_pooling_layer": "Sum", "local_pooling_layer": "Avg", "mean_accuracy": 0.92, "std_accuracy": 0.02}
+      ]
+      df = to_table(list_dict)
+      print(df)
+  
+  """
+  dic_results = {"dataset": [], "global_pooling_layer":[], "local_pooling_layer":[], "convolution_layer":[], "mean_accuracy":[], "std_accuracy":[], "training_time":[]}
 
-    Returns:
-        pd.DataFrame: A formatted Pandas DataFrame with columns 'dataset', 'pooling_layer', and 'accuracy'.
-            - 'dataset': Name of the dataset.
-            - 'pooling_layer': Concatenation of 'local_pooling_layer' and 'global_pooling_layer'.
-            - 'accuracy': Formatted string of mean accuracy ± standard deviation.
-
-    Example Usage:
-        list_dict = [
-            {"dataset": "Dataset A", "global_pooling_layer": "Avg", "local_pooling_layer": "Max", "mean_accuracy": 0.85, "std_accuracy": 0.03},
-            {"dataset": "Dataset B", "global_pooling_layer": "Sum", "local_pooling_layer": "Avg", "mean_accuracy": 0.92, "std_accuracy": 0.02}
-        ]
-        df = to_table(list_dict)
-        print(df)
-
-    """
-    dic_results = {
-        "dataset": [],
-        "global_pooling_layer": [],
-        "local_pooling_layer": [],
-        "mean_accuracy": [],
-        "std_accuracy": [],
-    }
-
-    for dic in list_dict:
+  for dic in list_dict:
         dic_results["dataset"].append(dic["dataset"])
         dic_results["global_pooling_layer"].append(dic["global_pooling_layer"])
         dic_results["local_pooling_layer"].append(dic["local_pooling_layer"])
+        dic_results["convolution_layer"].append(dic["convolution_layer"])
         dic_results["mean_accuracy"].append(dic["mean_accuracy"])
         dic_results["std_accuracy"].append(dic["std_accuracy"])
+        training_time = 0
+        for i in range(1, 11):
+            try:
+                training_time += dic["split "+str(i)]["train_time_per_epoch"]*dic["split "+str(i)]["last_epoch"]
+            except KeyError:
+                training_time += 0
+        dic_results["training_time"].append(training_time/10)
 
-    df = pd.DataFrame(dic_results)
+  df = pd.DataFrame(dic_results)
 
-    df["pooling_layer"] = (
-        df["local_pooling_layer"].astype(str).replace("None", "")
-        + df["global_pooling_layer"]
-    )
-    df["accuracy"] = (
-        "$"
-        + df["mean_accuracy"].apply("{:.3f}".format).astype(str)
-        + "\pm"
-        + df["std_accuracy"].apply("{:.3f}".format).astype(str)
-        + "$"
-    )
-    df = df.drop(
-        columns=[
-            "local_pooling_layer",
-            "global_pooling_layer",
-            "mean_accuracy",
-            "std_accuracy",
-        ]
-    )
-    df = df.pivot(index="dataset", columns="pooling_layer", values="accuracy")
-    df = df.rename_axis(None, axis=1)
-    df = df.rename_axis(None, axis=0)
-
-    return df
-
+  df["local_pooling_layer"] = df["local_pooling_layer"].astype(str)
+  indexes_to_bold = df.groupby("dataset")["mean_accuracy"].idxmax()
+  df["accuracy"] = "$" + df["mean_accuracy"].apply("{:.3f}".format).astype(str) + "\pm" + df["std_accuracy"].apply("{:.3f}".format).astype(str) + "$"
+  df.loc[indexes_to_bold, "accuracy"] = "$\\bm{" + df.loc[indexes_to_bold, "mean_accuracy"].apply("{:.3f}".format).astype(str) + "\pm" + df.loc[indexes_to_bold, "std_accuracy"].apply("{:.3f}".format).astype(str) + "}$"
+  df = df.drop(columns=["mean_accuracy", "std_accuracy"])
+  df = df.rename(columns={'convolution_layer': 'Conv', 'local_pooling_layer': 'Local', 'global_pooling_layer': 'Global', 'dataset': 'Dataset'})
+  df = df.pivot(index=['Conv', "Local", 'Global'], columns='Dataset', values=['accuracy', 'training_time'])
+  training_time = df["training_time"].mean(axis=1).copy().astype(int).astype(str)
+  df = df.drop(columns=["training_time"])
+  df.columns = df.columns.droplevel(0)
+  df = df.rename_axis(None, axis=1)  
+  df["Training Time"] = training_time
+  return df
 
 def plot_bar_dataset(
-    list_dict: List[Dict], cmap: str = "tab10", n_colors: int = 10, **kwargs
+    list_dict: List[Dict], cmap: str = "tab10", n_colors: int = 5, **kwargs
 ):
 
     # first, create a dictionnary whose keys are the dataset and values are

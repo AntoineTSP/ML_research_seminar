@@ -16,6 +16,11 @@ class GCN(nn.Module):
                  dic_conversion_layer=None):
         super(GCN, self).__init__()
         torch.manual_seed(12345)
+
+        # Architecture tests
+        self.multiple_linear = False
+        self.residual = False
+
         self.conv1 = conv_method(num_node_features, hidden_channels)
         self.conv1_bis = conv_method(hidden_channels, hidden_channels)
         self.conv2 = conv_method(hidden_channels, hidden_channels)
@@ -38,7 +43,18 @@ class GCN(nn.Module):
             self.pool2 = local_pool_method(hidden_channels)
             self.pool3 = local_pool_method(hidden_channels)
 
-        self.lin = nn.Linear(hidden_channels, num_classes)
+        if self.residual:
+            input_linear_channels = 3*hidden_channels
+        else:
+            input_linear_channels = hidden_channels
+
+        if self.multiple_linear:
+            self.lin1 = nn.Linear(input_linear_channels, hidden_channels)
+            self.lin2 = nn.Linear(hidden_channels, hidden_channels)
+            self.lin3 = nn.Linear(hidden_channels, num_classes)
+        else:
+            self.lin1 = nn.Linear(input_linear_channels, num_classes)
+
         self.pool = global_pool_method
 
         self.dic_conversion_layer = dic_conversion_layer
@@ -46,6 +62,7 @@ class GCN(nn.Module):
     def forward(self, x, edge_index, batch):
         # 1. Obtain node embeddings
         losses = []
+        to_concat = []
         x = self.conv1(x, edge_index)
         x = self.bn1(x)
         #x = x.relu()
@@ -65,6 +82,9 @@ class GCN(nn.Module):
             batch = output[self.dic_conversion_layer['batch']]
             if not self.dic_conversion_layer.get('loss') is None:
                 losses.append(output[self.dic_conversion_layer['loss']])
+        
+        if self.residual:
+            to_concat.append(self.pool(x, batch))
 
         x = self.conv2(x, edge_index)
         x = self.bn2(x)
@@ -86,6 +106,9 @@ class GCN(nn.Module):
             if not self.dic_conversion_layer.get('loss') is None:
                 losses.append(output[self.dic_conversion_layer['loss']])
 
+        if self.residual:
+            to_concat.append(self.pool(x, batch))
+
         x = self.conv3(x, edge_index)
         x = self.bn3(x)
         #x = x.relu()
@@ -100,11 +123,24 @@ class GCN(nn.Module):
             if not self.dic_conversion_layer.get('loss') is None:
                 losses.append(output[self.dic_conversion_layer['loss']])
 
+        if self.residual:
+            to_concat.append(self.pool(x, batch))
+            x = torch.concat(to_concat, dim=1)
+
         # 2. Readout layer
-        x = self.pool(x, batch)  # [batch_size, hidden_channels]
+        if not self.residual:
+            x = self.pool(x, batch)  # [batch_size, hidden_channels]
+        x = F.dropout(x, p=0.3, training=self.training)
 
         # 3. Apply a final classifier
-        x = F.dropout(x, p=0.3, training=self.training)
-        x = self.lin(x)
+        if self.multiple_linear:
+            x = self.lin1(x)
+            x = F.leaky_relu(x, 0.1)
+            x = self.lin2(x)
+            x = F.leaky_relu(x, 0.1)
+            x = self.lin3(x)
+        else:
+            x = self.lin1(x)
+
 
         return x, torch.Tensor(losses)
