@@ -1,4 +1,4 @@
-from typing import List, Dict, Tuple
+from typing import List, Dict, Tuple, Any
 
 import numpy as np
 
@@ -20,13 +20,14 @@ def get_convolution_mapping(list_dict: List[Dict]) -> Tuple[List, Dict, List]:
 
     # the convolutions will be used for the shape of the points
     convolutions = [d["convolution_layer"] for d in list_dict]
+    unique_convolutions = np.unique(convolutions)
 
-    if len(convolutions) > 41:
+    if len(unique_convolutions) > 41:
         raise Exception(
             f"Not enough possible values of shape for the convolutions : got {len(convolutions)} but expected 41 at most"
         )
     # same as for the colors: creating a mapping of the convolutions to the shapes
-    unique_convolutions = np.unique(convolutions)
+    
     existing_shapes = list(markers.MarkerStyle.markers.keys())
     shape_mapping = {}
 
@@ -63,7 +64,7 @@ def get_pooling_mapping(list_dict: List[Dict]) -> Tuple[List, Dict, List]:
     return poolings, color_mapping, colors
 
 
-def plot_from_dict(list_dict: List[Dict], figsize: Tuple[int, int], **kwargs) -> None:
+def plot_from_dict(list_dict: List[Dict], figsize: Tuple[int, int] = (10,6), **kwargs) -> None:
     """
     Plot the graph resulting from the list of dictionnary
 
@@ -128,7 +129,10 @@ def plot_from_dict(list_dict: List[Dict], figsize: Tuple[int, int], **kwargs) ->
             **kwargs,
         )
 
-    ax.legend(handles=legend_color + legend_shape)
+    ax.legend(
+            handles=legend_color + legend_shape,
+            bbox_to_anchor=(1.5,1)
+        )
 
     ax.set_xlabel("Number of parameters")
     ax.set_ylabel("Mean accuracy")
@@ -146,7 +150,8 @@ def pairplot_from_dict(
     rows_to_plot: List[Tuple[str, str]],
     dim_grid_subplots: Tuple[int, int],
     figsize: Tuple[int, int] | None = None,
-    **kwargs,
+    kwargs1 : Dict[str, Any] = {},
+    kwargs2 : Dict[str, Any] = {},
 ) -> None:
     """
     Plot all the in subfigures all the variables described in rows_to_plot
@@ -231,10 +236,10 @@ def pairplot_from_dict(
                 y_value,
                 c=np.array(color).reshape((1, 4)),
                 marker=shape,
-                **kwargs,
+                **kwargs1,
             )
 
-        ax.legend(handles=legend_color + legend_shape)
+        ax.legend(handles=legend_color + legend_shape, **kwargs2)
 
         ax.set_xlabel(key1)
         ax.set_ylabel(key2)
@@ -247,81 +252,6 @@ def pairplot_from_dict(
     plt.show()
 
     return
-
-
-def plot_bar_dataset(
-    list_dict: List[Dict], cmap: str = "tab10", n_colors: int = 5, **kwargs
-):
-
-    # first, create a dictionnary whose keys are the dataset and values are
-    # the list of all element from list_dict for this dataset
-    data_by_dataset = {}
-
-    for entry in list_dict:
-
-        dataset = entry["dataset"]
-
-        if dataset not in data_by_dataset:
-            data_by_dataset[dataset] = []
-
-        data_by_dataset[dataset].append(entry)
-
-    # the colors of the bars
-    colors = [plt.get_cmap(cmap)(i) for i in range(n_colors)]
-
-    _, axes = plt.subplots(
-        nrows=len(data_by_dataset),
-        ncols=1,
-        figsize=(10, len(data_by_dataset) * 5),
-        squeeze=False,
-    )
-    axes = axes.flatten()
-
-    for ax, (dataset, records) in zip(axes, data_by_dataset.items()):
-
-        # all different pooling methods
-        pooling_methods = np.unique([record["pooling"] for record in records])
-        mean_accuracies = {pol: [] for pol in pooling_methods}
-
-        for record in records:
-            pol = record["pooling"]
-            mean_accuracies[pol].append(record["mean_accuracy"])
-
-        # the list of the mean accuracy for each pooling value (averaged per pooling)
-        mean_accuracies = list(map(lambda l: sum(l) / len(l), mean_accuracies.values()))
-
-        # repeating colors if there is more pooling methods than pooling
-        if len(pooling_methods) > n_colors:
-            colors = colors * (len(pooling_methods) // n_colors + 1)
-
-        bars = ax.bar(
-            pooling_methods,
-            mean_accuracies,
-            color=colors[: len(pooling_methods)],
-            **kwargs,
-        )
-        ax.set_title(f"Dataset: {dataset}")
-        ax.set_ylabel("Mean Accuracy")
-        ax.set_xlabel("Pooling Method")
-        ax.set_xticks(range(len(pooling_methods)))
-
-        for bar, acc in zip(bars, mean_accuracies):
-            height = bar.get_height()
-            ax.annotate(
-                f"{acc:.3f}",
-                (bar.get_x() + bar.get_width() / 2, height / 2),
-                textcoords="offset points",
-                xytext=(0, 0),
-                ha="center",
-                va="center",
-                rotation=0,
-            )
-
-    # Adjust the spacing after creating subplots
-    plt.tight_layout()
-    plt.subplots_adjust(hspace=0.5)  # You can adjust this value as needed
-
-    plt.show()
 
 
 def to_table(list_dict: List[Dict]) -> pd.DataFrame:
@@ -393,6 +323,80 @@ def to_table(list_dict: List[Dict]) -> pd.DataFrame:
 
     return df
 
+
+def plot_bar_dataset(
+    list_dict: List[Dict], cmap: str = "tab10", n_colors: int = 10, **kwargs
+):
+
+    # first, create a dictionnary whose keys are the dataset and values are
+    # the list of all element from list_dict for this dataset
+    data_by_dataset = {}
+
+    for entry in list_dict:
+
+        dataset = entry["dataset"]
+
+        if dataset not in data_by_dataset:
+            data_by_dataset[dataset] = []
+
+        data_by_dataset[dataset].append(entry)
+
+    # the colors of the bars
+    colors = [plt.get_cmap(cmap)(i) for i in range(n_colors)]
+
+    _, axes = plt.subplots(
+        nrows=len(data_by_dataset),
+        ncols=1,
+        figsize=(12, len(data_by_dataset) * 5),
+        squeeze=False,
+    )
+    axes = axes.flatten()
+
+    for ax, (dataset, records) in zip(axes, data_by_dataset.items()):
+
+        # all different pooling methods
+        pooling_methods = np.unique([record["pooling"] for record in records])
+        mean_accuracies = {pol: [] for pol in pooling_methods}
+
+        for record in records:
+            pol = record["pooling"]
+            mean_accuracies[pol].append(record["mean_accuracy"])
+
+        # the list of the mean accuracy for each pooling value (averaged per pooling)
+        mean_accuracies = list(map(lambda l: sum(l) / len(l), mean_accuracies.values()))
+
+        # repeating colors if there is more pooling methods than pooling
+        if len(pooling_methods) > n_colors:
+            colors = colors * (len(pooling_methods) // n_colors + 1)
+
+        bars = ax.bar(
+            pooling_methods,
+            mean_accuracies,
+            color=colors[: len(pooling_methods)],
+            **kwargs,
+        )
+        ax.set_title(f"Dataset: {dataset}")
+        ax.set_ylabel("Mean Accuracy")
+        ax.set_xlabel("Pooling Method")
+        ax.set_xticks(range(len(pooling_methods)))
+
+        for bar, acc in zip(bars, mean_accuracies):
+            height = bar.get_height()
+            ax.annotate(
+                f"{acc:.3f}",
+                (bar.get_x() + bar.get_width() / 2, height / 2),
+                textcoords="offset points",
+                xytext=(0, 0),
+                ha="center",
+                va="center",
+                rotation=0,
+            )
+
+    # Adjust the spacing after creating subplots
+    plt.tight_layout()
+    plt.subplots_adjust(hspace=0.5)
+
+    plt.show()
 
 def plot_losses(list_dict, train="train"):
     for dict in list_dict:
@@ -505,7 +509,7 @@ def plot_acc_parameters(list_dict):
         plt.title(f'Mean Accuracy vs Number of Parameters with Different Pooling Layers for {dataset} \n Triangle = mean ending pooling | Circle = max ending pooling')
         plt.legend(loc='lower right', bbox_to_anchor=(1.5, 0), borderaxespad=0., prop={'size': 10})
         plt.savefig(f"./Visualisation/results/acc_parameters/{dataset}.png", bbox_inches='tight')
-        plt.show()
+        plt.close()
 
 def plot_acc_time_epoch(list_dict):
     if not list_dict:
@@ -552,7 +556,7 @@ def plot_acc_time_epoch(list_dict):
         plt.title(f'Mean Accuracy vs Train time per epoch with Different Pooling Layers for {dataset} \n Triangle = mean ending pooling | Circle = max ending pooling')
         plt.legend(loc='lower right', bbox_to_anchor=(1.5, 0), borderaxespad=0., prop={'size': 10})
         plt.savefig(f"./Visualisation/results/acc_train_time_per_epoch/{dataset}.png", bbox_inches='tight')
-        plt.show()
+        plt.close()
 
 def plot_acc_full_train_time(list_dict):
     if not list_dict:
@@ -601,7 +605,7 @@ def plot_acc_full_train_time(list_dict):
         plt.title(f'Mean Accuracy vs Full train time with Different Pooling Layers for {dataset} \n Triangle = mean ending pooling | Circle = max ending pooling')
         plt.legend(loc='lower right', bbox_to_anchor=(1.5, 0), borderaxespad=0., prop={'size': 10})
         plt.savefig(f"./Visualisation/results/acc_full_train_time/{dataset}.png", bbox_inches='tight')
-        plt.show()
+        plt.close()
 
 
 def plot_acc(list_dict, train="train"):
