@@ -8,6 +8,8 @@ import matplotlib.patches as mpatches
 
 import pandas as pd
 
+from collections import defaultdict
+
 
 def get_convolution_mapping(list_dict: List[Dict]) -> Tuple[List, Dict, List]:
     """
@@ -27,7 +29,7 @@ def get_convolution_mapping(list_dict: List[Dict]) -> Tuple[List, Dict, List]:
             f"Not enough possible values of shape for the convolutions : got {len(convolutions)} but expected 41 at most"
         )
     # same as for the colors: creating a mapping of the convolutions to the shapes
-    
+
     existing_shapes = list(markers.MarkerStyle.markers.keys())
     shape_mapping = {}
 
@@ -64,7 +66,9 @@ def get_pooling_mapping(list_dict: List[Dict]) -> Tuple[List, Dict, List]:
     return poolings, color_mapping, colors
 
 
-def plot_from_dict(list_dict: List[Dict], figsize: Tuple[int, int] = (10,6), **kwargs) -> None:
+def plot_from_dict(
+    list_dict: List[Dict], figsize: Tuple[int, int] = (10, 6), **kwargs
+) -> None:
     """
     Plot the graph resulting from the list of dictionnary
 
@@ -130,10 +134,7 @@ def plot_from_dict(list_dict: List[Dict], figsize: Tuple[int, int] = (10,6), **k
             **kwargs,
         )
 
-    ax.legend(
-            handles=legend_color + legend_shape,
-            bbox_to_anchor=(1.5,1)
-        )
+    ax.legend(handles=legend_color + legend_shape, bbox_to_anchor=(1.5, 1))
 
     ax.set_xlabel("Number of parameters")
     ax.set_ylabel("Mean accuracy")
@@ -146,18 +147,40 @@ def plot_from_dict(list_dict: List[Dict], figsize: Tuple[int, int] = (10,6), **k
     return
 
 
+def get_grouped_list(list_dict: List[Dict]) -> List[List[Dict]]:
+    """
+    Returns a list of list of the dictionaries of list_dict, groupby
+    the pooling (this will be used for the following function
+    pairplot_from_dict)
+    """
+
+    grouped_data = defaultdict(list)
+
+    # Group dictionaries by the 'pooling' key
+    for d in list_dict:
+        pooling_key = d.get("pooling_and_archi", None)
+        grouped_data[pooling_key].append(d)
+
+    # Convert default dict to list of lists
+    grouped_list = [v for _, v in grouped_data.items()]
+
+    return grouped_list
+
+
 def pairplot_from_dict(
     list_dict: List[Dict],
     rows_to_plot: List[Tuple[str, str]],
     dim_grid_subplots: Tuple[int, int],
     figsize: Tuple[int, int] | None = None,
-    kwargs1 : Dict[str, Any] = {},
-    kwargs2 : Dict[str, Any] = {},
+    plot: bool = True,
+    kwargs1: Dict[str, Any] = {},
+    kwargs2: Dict[str, Any] = {},
+    kwargs3: Dict[str, Any] = {},
 ) -> None:
     """
     Plot all the variables described in rows_to_plot in subfigures
 
-    
+
     rows_to_plot -> All the variables of the dictionnaries of list_dict we want to
     plot (for instance, denoting (x,y) the first entry of rows_to_plot, the first plot will
     be dict[x] for the x-axis and dict[y] for the y-axis, for dict in list_dict)
@@ -167,8 +190,11 @@ def pairplot_from_dict(
 
     figsize -> width and height of the figure (figsize argument matplotlib figure function)
 
+    plot -> what kind of plot : if True, a plot, else a scatter
+
     **kwargs1 -> additional keyword arguments passed to matplotlib scatter function
     **kwargs2 -> additional keyword arguments passed to matplotlib legend function
+    **kwargs2 -> additional keyword arguments passed to matplotlib plot function (if plot)
 
     Raises error if some elements of the rows don't correspond to key values in list_dict,
     or if the number of elements of rows_to_plot don't fit the dimension of dim_grid_subplots
@@ -217,7 +243,9 @@ def pairplot_from_dict(
 
     axs = axs.flatten()
 
-    n_dict = len(list_dict)
+    if plot:
+        grouped_list = get_grouped_list(list_dict)
+        n_grouped_list = len(grouped_list)
 
     for ax, (key1, key2) in zip(axs, rows_to_plot):
 
@@ -232,8 +260,8 @@ def pairplot_from_dict(
             for i in range(len(shape_keys))
         ]
 
-        x_values = [list_dict[i][key1] for i in range(n_dict)]
-        y_values = [list_dict[i][key2] for i in range(n_dict)]
+        x_values = [dic[key1] for dic in list_dict]
+        y_values = [dic[key2] for dic in list_dict]
 
         for x_value, y_value, color, shape in zip(x_values, y_values, colors, shapes):
             ax.scatter(
@@ -243,6 +271,26 @@ def pairplot_from_dict(
                 marker=shape,
                 **kwargs1,
             )
+
+        if plot:
+            for i in range(n_grouped_list):
+
+                x_plot = np.array([dic[key1] for dic in grouped_list[i]])
+                y_plot = np.array([dic[key2] for dic in grouped_list[i]])
+
+                plot_pooling = grouped_list[i][0]["pooling"]
+                color = color_mapping[plot_pooling]
+
+                x_plot_argsort = np.argsort(x_plot)
+                x_plot = x_plot[x_plot_argsort]
+                y_plot = y_plot[x_plot_argsort]
+
+                ax.plot(
+                    x_plot,
+                    y_plot,
+                    c=np.array(color).reshape((1, 4)),
+                    **kwargs3,
+                )
 
         ax.legend(handles=legend_color + legend_shape, **kwargs2)
 
@@ -256,38 +304,47 @@ def pairplot_from_dict(
     # Show the plot
     plt.show()
 
-    return 
+    return
 
-def to_table(list_dict : List[Dict]) -> pd.DataFrame:
-  """
-  Convert a list of dictionaries into a formatted Pandas DataFrame for tabular presentation.
-  
-  Parameters:
-      list_dict (List[Dict]): A list of dictionaries containing the following keys:
-          - 'dataset': The name of the dataset.
-          - 'global_pooling_layer': The type of global pooling layer used.
-          - 'local_pooling_layer': The type of local pooling layer used.
-          - 'mean_accuracy': The mean accuracy value.
-          - 'std_accuracy': The standard deviation of accuracy.
 
-  Returns:
-      pd.DataFrame: A formatted Pandas DataFrame with columns 'dataset', 'pooling_layer', and 'accuracy'.
-          - 'dataset': Name of the dataset.
-          - 'pooling_layer': Concatenation of 'local_pooling_layer' and 'global_pooling_layer'.
-          - 'accuracy': Formatted string of mean accuracy ± standard deviation.
+def to_table(list_dict: List[Dict]) -> pd.DataFrame:
+    """
+    Convert a list of dictionaries into a formatted Pandas DataFrame for tabular presentation.
 
-  Example Usage:
-      list_dict = [
-          {"dataset": "Dataset A", "global_pooling_layer": "Avg", "local_pooling_layer": "Max", "mean_accuracy": 0.85, "std_accuracy": 0.03},
-          {"dataset": "Dataset B", "global_pooling_layer": "Sum", "local_pooling_layer": "Avg", "mean_accuracy": 0.92, "std_accuracy": 0.02}
-      ]
-      df = to_table(list_dict)
-      print(df)
-  
-  """
-  dic_results = {"dataset": [], "global_pooling_layer":[], "local_pooling_layer":[], "convolution_layer":[], "mean_accuracy":[], "std_accuracy":[], "training_time":[]}
+    Parameters:
+        list_dict (List[Dict]): A list of dictionaries containing the following keys:
+            - 'dataset': The name of the dataset.
+            - 'global_pooling_layer': The type of global pooling layer used.
+            - 'local_pooling_layer': The type of local pooling layer used.
+            - 'mean_accuracy': The mean accuracy value.
+            - 'std_accuracy': The standard deviation of accuracy.
 
-  for dic in list_dict:
+    Returns:
+        pd.DataFrame: A formatted Pandas DataFrame with columns 'dataset', 'pooling_layer', and 'accuracy'.
+            - 'dataset': Name of the dataset.
+            - 'pooling_layer': Concatenation of 'local_pooling_layer' and 'global_pooling_layer'.
+            - 'accuracy': Formatted string of mean accuracy ± standard deviation.
+
+    Example Usage:
+        list_dict = [
+            {"dataset": "Dataset A", "global_pooling_layer": "Avg", "local_pooling_layer": "Max", "mean_accuracy": 0.85, "std_accuracy": 0.03},
+            {"dataset": "Dataset B", "global_pooling_layer": "Sum", "local_pooling_layer": "Avg", "mean_accuracy": 0.92, "std_accuracy": 0.02}
+        ]
+        df = to_table(list_dict)
+        print(df)
+
+    """
+    dic_results = {
+        "dataset": [],
+        "global_pooling_layer": [],
+        "local_pooling_layer": [],
+        "convolution_layer": [],
+        "mean_accuracy": [],
+        "std_accuracy": [],
+        "training_time": [],
+    }
+
+    for dic in list_dict:
         dic_results["dataset"].append(dic["dataset"])
         dic_results["global_pooling_layer"].append(dic["global_pooling_layer"])
         dic_results["local_pooling_layer"].append(dic["local_pooling_layer"])
@@ -297,30 +354,83 @@ def to_table(list_dict : List[Dict]) -> pd.DataFrame:
         training_time = 0
         for i in range(1, 11):
             try:
-                training_time += dic["split "+str(i)]["train_time_per_epoch"]*dic["split "+str(i)]["last_epoch"]
+                training_time += (
+                    dic["split " + str(i)]["train_time_per_epoch"]
+                    * dic["split " + str(i)]["last_epoch"]
+                )
             except KeyError:
                 training_time += 0
-        dic_results["training_time"].append(training_time/10)
+        dic_results["training_time"].append(training_time / 10)
 
-  df = pd.DataFrame(dic_results)
+    df = pd.DataFrame(dic_results)
 
-  df["local_pooling_layer"] = df["local_pooling_layer"].astype(str)
-  indexes_to_bold = df.groupby("dataset")["mean_accuracy"].idxmax()
-  df["accuracy"] = "$" + df["mean_accuracy"].apply("{:.3f}".format).astype(str) + "\pm" + df["std_accuracy"].apply("{:.3f}".format).astype(str) + "$"
-  df.loc[indexes_to_bold, "accuracy"] = "$\\bm{" + df.loc[indexes_to_bold, "mean_accuracy"].apply("{:.3f}".format).astype(str) + "\pm" + df.loc[indexes_to_bold, "std_accuracy"].apply("{:.3f}".format).astype(str) + "}$"
-  df = df.drop(columns=["mean_accuracy", "std_accuracy"])
-  df = df.rename(columns={'convolution_layer': 'Conv', 'local_pooling_layer': 'Local', 'global_pooling_layer': 'Global', 'dataset': 'Dataset'})
-  df = df.pivot(index=['Conv', "Local", 'Global'], columns='Dataset', values=['accuracy', 'training_time'])
-  training_time = df["training_time"].sum(axis=1).copy().astype(int).astype(str)
-  df = df.drop(columns=["training_time"])
-  df.columns = df.columns.droplevel(0)
-  df = df.rename_axis(None, axis=1)  
-  df["Training Time"] = training_time
-  return df
+    df["local_pooling_layer"] = df["local_pooling_layer"].astype(str)
+    indexes_to_bold = df.groupby("dataset")["mean_accuracy"].idxmax()
+    df["accuracy"] = (
+        "$"
+        + df["mean_accuracy"].apply("{:.3f}".format).astype(str)
+        + "\pm"
+        + df["std_accuracy"].apply("{:.3f}".format).astype(str)
+        + "$"
+    )
+    df.loc[indexes_to_bold, "accuracy"] = (
+        "$\\bm{"
+        + df.loc[indexes_to_bold, "mean_accuracy"].apply("{:.3f}".format).astype(str)
+        + "\pm"
+        + df.loc[indexes_to_bold, "std_accuracy"].apply("{:.3f}".format).astype(str)
+        + "}$"
+    )
+    df = df.drop(columns=["mean_accuracy", "std_accuracy"])
+    df = df.rename(
+        columns={
+            "convolution_layer": "Conv",
+            "local_pooling_layer": "Local",
+            "global_pooling_layer": "Global",
+            "dataset": "Dataset",
+        }
+    )
+    df = df.pivot(
+        index=["Conv", "Local", "Global"],
+        columns="Dataset",
+        values=["accuracy", "training_time"],
+    )
+    training_time = df["training_time"].sum(axis=1).copy().astype(int).astype(str)
+    df = df.drop(columns=["training_time"])
+    df.columns = df.columns.droplevel(0)
+    df = df.rename_axis(None, axis=1)
+    df["Training Time"] = training_time
+    return df
+
+
+def get_mean_tuple_list(tuple_list: List[Tuple[float, str]]) -> List[Tuple[float, str]]:
+    """
+    For a list of tuple, returns a dictionary with the unique values of str
+    as keys and the mean of values as values
+    """
+    res = defaultdict(lambda: (0, 0))
+    for val, key in tuple_list:
+        prev_val, i = res[key]
+        res[key] = (prev_val + val, i + 1)
+
+    get_mean = lambda t: t[0] / t[1]
+
+    return {key: get_mean(value) for key, value in res.items()}
+
 
 def plot_bar_dataset(
-    list_dict: List[Dict], cmap: str = "tab10", n_colors: int = 10, **kwargs
+    list_dict: List[Dict],
+    groupby: str,
+    stack: str | None,
+    x_figsize: int,
+    cmap: str = "tab10",
+    n_colors: int = 10,
+    **kwargs,
 ):
+    """
+    groupby -> the key along which each bar will be plotted
+    stack -> the key along which each bar will be duplicated
+        (if None, there is no stacking)
+    """
 
     # first, create a dictionnary whose keys are the dataset and values are
     # the list of all element from list_dict for this dataset
@@ -338,59 +448,127 @@ def plot_bar_dataset(
     # the colors of the bars
     colors = [plt.get_cmap(cmap)(i) for i in range(n_colors)]
 
+    # a subplot for each dataset
     _, axes = plt.subplots(
         nrows=len(data_by_dataset),
         ncols=1,
-        figsize=(12, len(data_by_dataset) * 5),
+        figsize=(x_figsize, len(data_by_dataset) * 5),
         squeeze=False,
     )
     axes = axes.flatten()
+    # this doesn't change much, the value is arbitrary
+    bar_width = 0.15
 
+    # loop for each plot (dataset)
     for ax, (dataset, records) in zip(axes, data_by_dataset.items()):
 
-        # all different pooling methods
-        pooling_methods = np.unique([record["pooling"] for record in records])
-        mean_accuracies = {pol: [] for pol in pooling_methods}
+        groupby_values = np.unique([record[groupby] for record in records])
+        # the keys of this dictionary are the groupby values (value for each group
+        # of barplot)
+        mean_accuracies = {e: [] for e in groupby_values}
 
         for record in records:
-            pol = record["pooling"]
-            mean_accuracies[pol].append(record["mean_accuracy"])
+            e = record[groupby]
+            if stack is None:
+                mean_accuracies[e].append(record["mean_accuracy"])
+            else:
+                # For the moment, mean_accuracies is a dictionary where each value
+                # is the tuple of the mean accuracy and the str corresponding to the
+                # stack variable
+                mean_accuracies[e].append((record["mean_accuracy"], record[stack]))
 
-        # the list of the mean accuracy for each pooling value (averaged per pooling)
-        mean_accuracies = list(map(lambda l: sum(l) / len(l), mean_accuracies.values()))
+        if stack is None:
+            # the list of the mean accuracy for each groupby variable
+            mean_accuracies = list(
+                map(lambda l: sum(l) / len(l), mean_accuracies.values())
+            )
+        else:
+            # a dictionary of dictionary where for each dictionary, the key is the stack variable
+            # and the value is the average accuracy along each identical element across both the
+            # stack and groupby variable
+            mean_accuracies = {
+                key: get_mean_tuple_list(value)
+                for key, value in mean_accuracies.items()
+            }
 
-        # repeating colors if there is more pooling methods than pooling
-        if len(pooling_methods) > n_colors:
-            colors = colors * (len(pooling_methods) // n_colors + 1)
+        # repeating colors if necessary
+        if len(groupby_values) > n_colors:
+            colors = colors * (len(groupby_values) // n_colors + 1)
 
-        bars = ax.bar(
-            pooling_methods,
-            mean_accuracies,
-            color=colors[: len(pooling_methods)],
-            **kwargs,
-        )
+        # if no stack variables
+        if stack is None:
+            # bars for each groupby values
+            bars = ax.bar(
+                groupby_values,
+                mean_accuracies,
+                color=colors[: len(groupby_values)],
+                **kwargs,
+            )
+
+            ax.set_xticks(range(len(groupby_values)))
+
+            # annotating the accuracies on the center of each bar
+            for bar, acc in zip(bars, mean_accuracies):
+                height = bar.get_height()
+                ax.annotate(
+                    f"{acc:.3f}",
+                    (bar.get_x() + bar.get_width() / 2, height / 2),
+                    textcoords="offset points",
+                    xytext=(0, 0),
+                    ha="center",
+                    va="center",
+                    rotation=0,
+                )
+
+        # if there is a stack variable
+        else:
+            # keys : each groupby value
+            keys = list(mean_accuracies.keys())
+            # values : the keys of the dictionaries (among the dictionary)
+            values = list(mean_accuracies[keys[0]].keys())
+            # useful for xticks afterwards
+            index = np.arange(len(keys))
+
+            # loop across the keys of dictionaries
+            for i, value in enumerate(values):
+                # the mean accuracies for the tuple (groupby, stack)
+                accuracies = [mean_accuracies[key][value] for key in keys]
+                ax.bar(
+                    index + i * bar_width,
+                    accuracies,
+                    bar_width,
+                    color=colors[i],
+                    label=value,
+                    **kwargs,
+                )
+
+                # print the mean accuracy in the middle of the bars
+                offset = 0.02 if len(keys) > 1 else 0.0
+                for j, accuracy in enumerate(accuracies):
+                    ax.annotate(
+                        f"{accuracy:.3f}",
+                        (index[j] + i * bar_width - offset, accuracy / 2),
+                        textcoords="offset points",
+                        xytext=(0, 0),
+                        ha="center",
+                        va="center",
+                        rotation=270,
+                    )
+
+            ax.set_xticks(index + (len(values) - 1) * bar_width / 2)
+            ax.set_xticklabels(keys)
+            ax.legend()
+
         ax.set_title(f"Dataset: {dataset}")
         ax.set_ylabel("Mean Accuracy")
-        ax.set_xlabel("Pooling Method")
-        ax.set_xticks(range(len(pooling_methods)))
-
-        for bar, acc in zip(bars, mean_accuracies):
-            height = bar.get_height()
-            ax.annotate(
-                f"{acc:.3f}",
-                (bar.get_x() + bar.get_width() / 2, height / 2),
-                textcoords="offset points",
-                xytext=(0, 0),
-                ha="center",
-                va="center",
-                rotation=0,
-            )
+        ax.set_xlabel(groupby[0].upper() + groupby[1:])
 
     # Adjust the spacing after creating subplots
     plt.tight_layout()
     plt.subplots_adjust(hspace=0.5)
 
     plt.show()
+
 
 def plot_losses(list_dict, train="train"):
     for dict in list_dict:
@@ -465,7 +643,7 @@ def plot_acc_parameters(list_dict):
         print("Error: Empty list")
         return
 
-    datasets = set(d['dataset'] for d in list_dict)
+    datasets = set(d["dataset"] for d in list_dict)
     for dataset in datasets:
         plt.figure(figsize=(8, 6))
         colors = plt.cm.hsv(np.linspace(0, 1, 100))  # Define 15 different colors
@@ -474,43 +652,65 @@ def plot_acc_parameters(list_dict):
         mean_accuracy = []
         labels = set()
         for split in list_dict:
-            if split.get('dataset') == dataset:
-                nb_parameters.append(split.get('nb_parameters', 0))
-                mean_accuracy.append(split.get('mean_accuracy', 0))
+            if split.get("dataset") == dataset:
+                nb_parameters.append(split.get("nb_parameters", 0))
+                mean_accuracy.append(split.get("mean_accuracy", 0))
                 label = f"{split.get('convolution_layer')}_{split.get('local_pooling_layer', 'None')}"
                 labels.add(label)
 
         sorted_labels = sorted(labels)  # Sort labels alphabetically
-        
+
         colors = [color_map(i / len(sorted_labels)) for i in range(len(sorted_labels))]
         label_color_dict = {label: color for label, color in zip(sorted_labels, colors)}
-        
+
         for split in list_dict:
-            if split.get('dataset') == dataset:
+            if split.get("dataset") == dataset:
                 label = f"{split.get('convolution_layer')}_{split.get('local_pooling_layer', 'None')}"
-                color = label_color_dict.get(label, 'black')  # Use black color for labels not in sorted_labels
+                color = label_color_dict.get(
+                    label, "black"
+                )  # Use black color for labels not in sorted_labels
                 # split.get('global_pooling_layer')
                 # print(split.get("global_pooling_layer"))
                 if split.get("global_pooling_layer") == "mean":
-                    plt.scatter(split.get('nb_parameters', 0), split.get('mean_accuracy', 0),
-                                label=label if label in sorted_labels else None, color=color, marker='^')
+                    plt.scatter(
+                        split.get("nb_parameters", 0),
+                        split.get("mean_accuracy", 0),
+                        label=label if label in sorted_labels else None,
+                        color=color,
+                        marker="^",
+                    )
                 if split.get("global_pooling_layer") == "max":
-                    plt.scatter(split.get('nb_parameters', 0), split.get('mean_accuracy', 0),
-                                label=label if label in sorted_labels else None, color=color, marker='o')
+                    plt.scatter(
+                        split.get("nb_parameters", 0),
+                        split.get("mean_accuracy", 0),
+                        label=label if label in sorted_labels else None,
+                        color=color,
+                        marker="o",
+                    )
 
-        plt.xlabel('Number of Parameters')
-        plt.ylabel('Mean Accuracy')
-        plt.title(f'Mean Accuracy vs Number of Parameters with Different Pooling Layers for {dataset} \n Triangle = mean ending pooling | Circle = max ending pooling')
-        plt.legend(loc='lower right', bbox_to_anchor=(1.5, 0), borderaxespad=0., prop={'size': 10})
-        plt.savefig(f"./Visualisation/results/acc_parameters/{dataset}.png", bbox_inches='tight')
+        plt.xlabel("Number of Parameters")
+        plt.ylabel("Mean Accuracy")
+        plt.title(
+            f"Mean Accuracy vs Number of Parameters with Different Pooling Layers for {dataset} \n Triangle = mean ending pooling | Circle = max ending pooling"
+        )
+        plt.legend(
+            loc="lower right",
+            bbox_to_anchor=(1.5, 0),
+            borderaxespad=0.0,
+            prop={"size": 10},
+        )
+        plt.savefig(
+            f"./Visualisation/results/acc_parameters/{dataset}.png", bbox_inches="tight"
+        )
         plt.close()
+
 
 def plot_acc_time_epoch(list_dict):
     if not list_dict:
         print("Error: Empty list")
         return
 
-    datasets = set(d['dataset'] for d in list_dict)
+    datasets = set(d["dataset"] for d in list_dict)
     for dataset in datasets:
         plt.figure(figsize=(8, 6))
         colors = plt.cm.hsv(np.linspace(0, 1, 100))  # Define 15 different colors
@@ -519,45 +719,70 @@ def plot_acc_time_epoch(list_dict):
         mean_accuracy = []
         labels = set()
         for split in list_dict:
-            if 'split 1' in split:
-                if split.get('dataset') == dataset:
-                    train_time_per_epoch.append(split['split 1'].get('train_time_per_epoch', 0))
-                    mean_accuracy.append(split.get('mean_accuracy', 0))
+            if "split 1" in split:
+                if split.get("dataset") == dataset:
+                    train_time_per_epoch.append(
+                        split["split 1"].get("train_time_per_epoch", 0)
+                    )
+                    mean_accuracy.append(split.get("mean_accuracy", 0))
                     label = f"{split.get('convolution_layer')}_{split.get('local_pooling_layer', 'None')}"
                     labels.add(label)
 
         sorted_labels = sorted(labels)  # Sort labels alphabetically
-        
+
         colors = [color_map(i / len(sorted_labels)) for i in range(len(sorted_labels))]
         label_color_dict = {label: color for label, color in zip(sorted_labels, colors)}
-        
+
         for split in list_dict:
-            if 'split 1' in split:
-                if split.get('dataset') == dataset:
+            if "split 1" in split:
+                if split.get("dataset") == dataset:
                     label = f"{split.get('convolution_layer')}_{split.get('local_pooling_layer', 'None')}"
-                    color = label_color_dict.get(label, 'black')  # Use black color for labels not in sorted_labels
+                    color = label_color_dict.get(
+                        label, "black"
+                    )  # Use black color for labels not in sorted_labels
                     # split.get('global_pooling_layer')
                     # print(split.get("global_pooling_layer"))
                     if split.get("global_pooling_layer") == "mean":
-                        plt.scatter(split['split 1'].get('train_time_per_epoch', 0), split.get('mean_accuracy', 0),
-                                    label=label if label in sorted_labels else None, color=color, marker='^')
+                        plt.scatter(
+                            split["split 1"].get("train_time_per_epoch", 0),
+                            split.get("mean_accuracy", 0),
+                            label=label if label in sorted_labels else None,
+                            color=color,
+                            marker="^",
+                        )
                     if split.get("global_pooling_layer") == "max":
-                        plt.scatter(split['split 1'].get('train_time_per_epoch', 0), split.get('mean_accuracy', 0),
-                                    label=label if label in sorted_labels else None, color=color, marker='o')
+                        plt.scatter(
+                            split["split 1"].get("train_time_per_epoch", 0),
+                            split.get("mean_accuracy", 0),
+                            label=label if label in sorted_labels else None,
+                            color=color,
+                            marker="o",
+                        )
 
-        plt.xlabel('Train time per epoch (s)')
-        plt.ylabel('Mean Accuracy')
-        plt.title(f'Mean Accuracy vs Train time per epoch with Different Pooling Layers for {dataset} \n Triangle = mean ending pooling | Circle = max ending pooling')
-        plt.legend(loc='lower right', bbox_to_anchor=(1.5, 0), borderaxespad=0., prop={'size': 10})
-        plt.savefig(f"./Visualisation/results/acc_train_time_per_epoch/{dataset}.png", bbox_inches='tight')
+        plt.xlabel("Train time per epoch (s)")
+        plt.ylabel("Mean Accuracy")
+        plt.title(
+            f"Mean Accuracy vs Train time per epoch with Different Pooling Layers for {dataset} \n Triangle = mean ending pooling | Circle = max ending pooling"
+        )
+        plt.legend(
+            loc="lower right",
+            bbox_to_anchor=(1.5, 0),
+            borderaxespad=0.0,
+            prop={"size": 10},
+        )
+        plt.savefig(
+            f"./Visualisation/results/acc_train_time_per_epoch/{dataset}.png",
+            bbox_inches="tight",
+        )
         plt.close()
+
 
 def plot_acc_full_train_time(list_dict):
     if not list_dict:
         print("Error: Empty list")
         return
 
-    datasets = set(d['dataset'] for d in list_dict)
+    datasets = set(d["dataset"] for d in list_dict)
     for dataset in datasets:
         plt.figure(figsize=(8, 6))
         colors = plt.cm.hsv(np.linspace(0, 1, 100))  # Define 15 different colors
@@ -566,109 +791,225 @@ def plot_acc_full_train_time(list_dict):
         mean_accuracy = []
         labels = set()
         for split in list_dict:
-            if 'split 1' in split:
-                if split.get('dataset') == dataset:
-                    train_time.append(split['split 1'].get('train_time_per_epoch', 0) * len(split['split 1']['train_losses']))
-                    mean_accuracy.append(split.get('mean_accuracy', 0))
+            if "split 1" in split:
+                if split.get("dataset") == dataset:
+                    train_time.append(
+                        split["split 1"].get("train_time_per_epoch", 0)
+                        * len(split["split 1"]["train_losses"])
+                    )
+                    mean_accuracy.append(split.get("mean_accuracy", 0))
                     label = f"{split.get('convolution_layer')}_{split.get('local_pooling_layer', 'None')}"
                     labels.add(label)
 
         sorted_labels = sorted(labels)  # Sort labels alphabetically
-        
+
         colors = [color_map(i / len(sorted_labels)) for i in range(len(sorted_labels))]
         label_color_dict = {label: color for label, color in zip(sorted_labels, colors)}
-        
+
         for split in list_dict:
-            if 'split 1' in split:
-                if split.get('dataset') == dataset:
+            if "split 1" in split:
+                if split.get("dataset") == dataset:
                     label = f"{split.get('convolution_layer')}_{split.get('local_pooling_layer', 'None')}"
-                    color = label_color_dict.get(label, 'black')  # Use black color for labels not in sorted_labels
+                    color = label_color_dict.get(
+                        label, "black"
+                    )  # Use black color for labels not in sorted_labels
                     # split.get('global_pooling_layer')
                     # print(split.get("global_pooling_layer"))
                     if split.get("global_pooling_layer") == "mean":
-                        plt.scatter(split['split 1'].get('train_time_per_epoch', 0) * len(split['split 1']['train_losses']) / 60,
-                                    split.get('mean_accuracy', 0),
-                                    label=label if label in sorted_labels else None, color=color, marker='^')
+                        plt.scatter(
+                            split["split 1"].get("train_time_per_epoch", 0)
+                            * len(split["split 1"]["train_losses"])
+                            / 60,
+                            split.get("mean_accuracy", 0),
+                            label=label if label in sorted_labels else None,
+                            color=color,
+                            marker="^",
+                        )
                     if split.get("global_pooling_layer") == "max":
-                        plt.scatter(split['split 1'].get('train_time_per_epoch', 0) * len(split['split 1']['train_losses']) /60 ,
-                                    split.get('mean_accuracy', 0),
-                                    label=label if label in sorted_labels else None, color=color, marker='o')
+                        plt.scatter(
+                            split["split 1"].get("train_time_per_epoch", 0)
+                            * len(split["split 1"]["train_losses"])
+                            / 60,
+                            split.get("mean_accuracy", 0),
+                            label=label if label in sorted_labels else None,
+                            color=color,
+                            marker="o",
+                        )
 
-        plt.xlabel('Full train time (min)')
-        plt.ylabel('Mean Accuracy')
-        plt.title(f'Mean Accuracy vs Full train time with Different Pooling Layers for {dataset} \n Triangle = mean ending pooling | Circle = max ending pooling')
-        plt.legend(loc='lower right', bbox_to_anchor=(1.5, 0), borderaxespad=0., prop={'size': 10})
-        plt.savefig(f"./Visualisation/results/acc_full_train_time/{dataset}.png", bbox_inches='tight')
+        plt.xlabel("Full train time (min)")
+        plt.ylabel("Mean Accuracy")
+        plt.title(
+            f"Mean Accuracy vs Full train time with Different Pooling Layers for {dataset} \n Triangle = mean ending pooling | Circle = max ending pooling"
+        )
+        plt.legend(
+            loc="lower right",
+            bbox_to_anchor=(1.5, 0),
+            borderaxespad=0.0,
+            prop={"size": 10},
+        )
+        plt.savefig(
+            f"./Visualisation/results/acc_full_train_time/{dataset}.png",
+            bbox_inches="tight",
+        )
         plt.close()
 
 
 def plot_acc(list_dict, train="train"):
     for dict in list_dict:
-        if 'split 1' in dict:
+        if "split 1" in dict:
             fig = plt.figure()
             ax = fig.add_subplot(1, 1, 1)
-            ax.plot(np.arange(len(list_dict[0]['split 1']['train_accuracies'])), list_dict[0]['split 1'][train + '_accuracies'])
+            ax.plot(
+                np.arange(len(list_dict[0]["split 1"]["train_accuracies"])),
+                list_dict[0]["split 1"][train + "_accuracies"],
+            )
             ax.set_xlabel("Epochs")
             ax.set_ylabel(train + " acc")
             if dict["local_pooling_layer"] is not None:
-                ax.set_title(train + " accuracy across epochs with early stopping" +  "\n" +
-                            "for " + dict["dataset"] + " with " + dict['convolution_layer'] + 
-                             "," + dict["local_pooling_layer"] + " and " + dict["global_pooling_layer"])
-                plt.savefig("./Visualisation/results/acc/" + train + "/" + dict["dataset"] +
-                            "_"  + dict['convolution_layer'] + "_" + dict["local_pooling_layer"] +
-                            "_" + dict["global_pooling_layer"] + ".png")
+                ax.set_title(
+                    train
+                    + " accuracy across epochs with early stopping"
+                    + "\n"
+                    + "for "
+                    + dict["dataset"]
+                    + " with "
+                    + dict["convolution_layer"]
+                    + ","
+                    + dict["local_pooling_layer"]
+                    + " and "
+                    + dict["global_pooling_layer"]
+                )
+                plt.savefig(
+                    "./Visualisation/results/acc/"
+                    + train
+                    + "/"
+                    + dict["dataset"]
+                    + "_"
+                    + dict["convolution_layer"]
+                    + "_"
+                    + dict["local_pooling_layer"]
+                    + "_"
+                    + dict["global_pooling_layer"]
+                    + ".png"
+                )
                 plt.close()
             else:
-                ax.set_title(train + " accuracy across epochs with early stopping" +  "\n" +
-                            "for " + dict["dataset"] + " with " + dict['convolution_layer'] +
-                             "," + "None " + " and " +  dict["global_pooling_layer"])
-                plt.savefig("./Visualisation/results/acc/" + train + "/" + dict["dataset"] +
-                            "_" +dict['convolution_layer'] + "_" +  "None_" +
-                            dict["global_pooling_layer"] + ".png")
+                ax.set_title(
+                    train
+                    + " accuracy across epochs with early stopping"
+                    + "\n"
+                    + "for "
+                    + dict["dataset"]
+                    + " with "
+                    + dict["convolution_layer"]
+                    + ","
+                    + "None "
+                    + " and "
+                    + dict["global_pooling_layer"]
+                )
+                plt.savefig(
+                    "./Visualisation/results/acc/"
+                    + train
+                    + "/"
+                    + dict["dataset"]
+                    + "_"
+                    + dict["convolution_layer"]
+                    + "_"
+                    + "None_"
+                    + dict["global_pooling_layer"]
+                    + ".png"
+                )
                 plt.close()
 
 
 def plot_acc_and_loss(list_dict, train="train"):
     for dict in list_dict:
-        if 'split 1' in dict:
+        if "split 1" in dict:
             fig = plt.figure()
             ax1 = fig.add_subplot(1, 1, 1)
-            color = 'tab:blue'
-            ax1.plot(np.arange(len(dict['split 1']['train_accuracies'])), dict['split 1'][train + '_accuracies'],
-                    color=color, label= train + " accuracy")
+            color = "tab:blue"
+            ax1.plot(
+                np.arange(len(dict["split 1"]["train_accuracies"])),
+                dict["split 1"][train + "_accuracies"],
+                color=color,
+                label=train + " accuracy",
+            )
             ax1.set_xlabel("Epochs")
             ax1.set_ylabel(train + " acc", color=color)
-            ax1.tick_params(axis='y', labelcolor=color)
+            ax1.tick_params(axis="y", labelcolor=color)
 
             # Creating a secondary y-axis for the second curve
             ax2 = ax1.twinx()
-            color = 'tab:red'
-            ax2.plot(np.arange(len(dict['split 1'][train + '_losses'])), dict['split 1'][train + '_losses'],
-                    color=color, label=train + " loss")
+            color = "tab:red"
+            ax2.plot(
+                np.arange(len(dict["split 1"][train + "_losses"])),
+                dict["split 1"][train + "_losses"],
+                color=color,
+                label=train + " loss",
+            )
             ax2.set_xlabel("Epochs")
             ax2.set_ylabel(train + " loss", color=color)
-            ax2.tick_params(axis='y', labelcolor=color)
+            ax2.tick_params(axis="y", labelcolor=color)
 
             # Adding legends
             lines, labels = ax1.get_legend_handles_labels()
             lines2, labels2 = ax2.get_legend_handles_labels()
-            ax1.legend(lines + lines2, labels + labels2, loc='upper left')
-            
+            ax1.legend(lines + lines2, labels + labels2, loc="upper left")
+
             if dict["local_pooling_layer"] is not None:
-                ax1.set_title(train + " accuracy and loss across epochs with early stopping" +  "\n" +
-                            "for " + dict["dataset"] + " with " + dict['convolution_layer'] + 
-                             "," + dict["local_pooling_layer"] + " and " + dict["global_pooling_layer"])
+                ax1.set_title(
+                    train
+                    + " accuracy and loss across epochs with early stopping"
+                    + "\n"
+                    + "for "
+                    + dict["dataset"]
+                    + " with "
+                    + dict["convolution_layer"]
+                    + ","
+                    + dict["local_pooling_layer"]
+                    + " and "
+                    + dict["global_pooling_layer"]
+                )
                 plt.tight_layout()
-                plt.savefig("./Visualisation/results/acc_and_loss/" + train + "/" + dict["dataset"] +
-                            "_"  + dict['convolution_layer'] + "_" + dict["local_pooling_layer"] +
-                            "_" + dict["global_pooling_layer"] + ".png")
+                plt.savefig(
+                    "./Visualisation/results/acc_and_loss/"
+                    + train
+                    + "/"
+                    + dict["dataset"]
+                    + "_"
+                    + dict["convolution_layer"]
+                    + "_"
+                    + dict["local_pooling_layer"]
+                    + "_"
+                    + dict["global_pooling_layer"]
+                    + ".png"
+                )
                 plt.close()
             else:
-                ax1.set_title(train + " accuracy and loss across epochs with early stopping" +  "\n" +
-                            "for " + dict["dataset"] + " with " + dict['convolution_layer'] +
-                             "," + "None " + " and " +  dict["global_pooling_layer"])
+                ax1.set_title(
+                    train
+                    + " accuracy and loss across epochs with early stopping"
+                    + "\n"
+                    + "for "
+                    + dict["dataset"]
+                    + " with "
+                    + dict["convolution_layer"]
+                    + ","
+                    + "None "
+                    + " and "
+                    + dict["global_pooling_layer"]
+                )
                 plt.tight_layout()
-                plt.savefig("./Visualisation/results/acc_and_loss/" + train + "/" + dict["dataset"] +
-                            "_" +dict['convolution_layer'] + "_" +  "None_" +
-                            dict["global_pooling_layer"] + ".png")
+                plt.savefig(
+                    "./Visualisation/results/acc_and_loss/"
+                    + train
+                    + "/"
+                    + dict["dataset"]
+                    + "_"
+                    + dict["convolution_layer"]
+                    + "_"
+                    + "None_"
+                    + dict["global_pooling_layer"]
+                    + ".png"
+                )
                 plt.close()
