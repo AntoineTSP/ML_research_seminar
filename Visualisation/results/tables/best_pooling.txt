@@ -1,0 +1,9 @@
+\begin{tabular}{ll}
+\toprule
+ & 0 \\
+\midrule
+GAT & MEWIS \\
+GCN & None \\
+GINConv & EDGE \\
+\bottomrule
+\end{tabular}

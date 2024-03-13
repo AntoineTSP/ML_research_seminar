@@ -1,0 +1,11 @@
+\begin{tabular}{ll}
+\toprule
+ & 0 \\
+\midrule
+EDGE & GAT \\
+MEWIS & GCN \\
+None & GCN \\
+SAG & GCN \\
+TOPK & GAT \\
+\bottomrule
+\end{tabular}

@@ -1,0 +1,9 @@
+\begin{tabular}{lrrr}
+\toprule
+Dataset & ENZYMES & MUTAG & PROTEINS \\
+\midrule
+GAT & 16 & 21 & 14 \\
+GCN & 17 & 17 & 20 \\
+GINConv & 12 & 7 & 12 \\
+\bottomrule
+\end{tabular}

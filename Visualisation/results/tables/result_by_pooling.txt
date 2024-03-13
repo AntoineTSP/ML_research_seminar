@@ -1,0 +1,27 @@
+\begin{tabular}{lllllll}
+\toprule
+ &  &  & ENZYMES & MUTAG & PROTEINS & Training Time \\
+\midrule
+\multirow[t]{3}{*}{EDGE} & \multirow[t]{2}{*}{max} & GCN & $0.294\pm0.026$ & $0.703\pm0.081$ & $\bm{0.753\pm0.024}$ & 722 \\
+ &  & GINConv & $0.353\pm0.039$ & $\bm{0.847\pm0.063}$ & $0.731\pm0.017$ & 694 \\
+\cline{2-7}
+ & mean & GINConv & $\bm{0.379\pm0.047}$ & $0.847\pm0.070$ & $0.724\pm0.016$ & 775 \\
+\cline{1-7} \cline{2-7}
+\multirow[t]{2}{*}{MEWIS} & max & GINConv & $0.309\pm0.055$ & $0.789\pm0.077$ & $0.743\pm0.016$ & 1804 \\
+\cline{2-7}
+ & mean & GINConv & $0.282\pm0.040$ & $0.795\pm0.067$ & $0.733\pm0.020$ & 1605 \\
+\cline{1-7} \cline{2-7}
+\multirow[t]{2}{*}{None} & max & GCN & $0.316\pm0.044$ & $0.703\pm0.065$ & $0.743\pm0.029$ & 29 \\
+\cline{2-7}
+ & mean & GINConv & $0.337\pm0.047$ & $0.842\pm0.073$ & $0.708\pm0.020$ & 31 \\
+\cline{1-7} \cline{2-7}
+\multirow[t]{3}{*}{SAG} & \multirow[t]{2}{*}{max} & GAT & $0.189\pm0.025$ & $0.676\pm0.062$ & $0.722\pm0.050$ & 64 \\
+ &  & GINConv & $0.188\pm0.040$ & $0.761\pm0.081$ & $0.714\pm0.039$ & 35 \\
+\cline{2-7}
+ & mean & GAT & $0.231\pm0.037$ & $0.711\pm0.117$ & $0.721\pm0.022$ & 71 \\
+\cline{1-7} \cline{2-7}
+\multirow[t]{2}{*}{TOPK} & \multirow[t]{2}{*}{mean} & GCN & $0.227\pm0.023$ & $0.766\pm0.078$ & $0.701\pm0.034$ & 33 \\
+ &  & GINConv & $0.244\pm0.065$ & $0.739\pm0.067$ & $0.704\pm0.038$ & 37 \\
+\cline{1-7} \cline{2-7}
+\bottomrule
+\end{tabular}

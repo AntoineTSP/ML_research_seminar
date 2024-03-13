@@ -306,8 +306,7 @@ def pairplot_from_dict(
 
     return
 
-
-def to_table(list_dict: List[Dict]) -> pd.DataFrame:
+def to_table(list_dict: List[Dict], per_dataset=False) -> pd.DataFrame:
     """
     Convert a list of dictionaries into a formatted Pandas DataFrame for tabular presentation.
 
@@ -364,6 +363,8 @@ def to_table(list_dict: List[Dict]) -> pd.DataFrame:
 
     df = pd.DataFrame(dic_results)
 
+    df = df[df["dataset"]!="NCI1"]
+
     df["local_pooling_layer"] = df["local_pooling_layer"].astype(str)
     indexes_to_bold = df.groupby("dataset")["mean_accuracy"].idxmax()
     df["accuracy"] = (
@@ -380,7 +381,6 @@ def to_table(list_dict: List[Dict]) -> pd.DataFrame:
         + df.loc[indexes_to_bold, "std_accuracy"].apply("{:.3f}".format).astype(str)
         + "}$"
     )
-    df = df.drop(columns=["mean_accuracy", "std_accuracy"])
     df = df.rename(
         columns={
             "convolution_layer": "Conv",
@@ -389,18 +389,49 @@ def to_table(list_dict: List[Dict]) -> pd.DataFrame:
             "dataset": "Dataset",
         }
     )
+    datasets = df["Dataset"].unique()
     df = df.pivot(
         index=["Conv", "Local", "Global"],
         columns="Dataset",
-        values=["accuracy", "training_time"],
+        values=["accuracy", "training_time", "mean_accuracy"],
     )
+
+
+    df_ranking = df["mean_accuracy"].rank(ascending=False)#.groupby(["Conv", "Local"], group_keys=True)[datasets].mean()
+    conv_map = df.reset_index(level=[0,1,2])["Conv"].to_dict()
+    pool_map = df.reset_index(level=[0,1,2])["Local"].to_dict()
+    average_ranking_df_archi = df_ranking.reset_index(level=[0]).groupby(["Conv"])[datasets].mean().astype(int)
+    average_ranking_df_pooling = df_ranking.reset_index(level=[1]).groupby(["Local"])[datasets].mean().astype(int)
+
+    if per_dataset:
+        aggregator = lambda x:x
+        aggregated_columns = datasets
+    else:
+        aggregator = lambda x:x.mean(axis=1)
+        aggregated_columns = 0
+        
+    df_best_pooling = aggregator(df_ranking).reset_index(level=[0,1,2]).groupby(["Conv"]).idxmin()[aggregated_columns].copy()
+    df_best_architecture = aggregator(df_ranking).reset_index(level=[0,1,2]).groupby(["Local"]).idxmin()[aggregated_columns].copy()
+    best_indexes_by_architecture = list(set(df_best_pooling.values.flatten()))
+    best_indexes_by_pooling = list(set(df_best_architecture.values.flatten()))
+    df_best_pooling =  df_best_pooling.map(lambda x:pool_map[x])
+    df_best_architecture =  df_best_architecture.map(lambda x:conv_map[x])
+
+    df_worst_pooling = aggregator(df_ranking).reset_index(level=[0,1,2]).groupby(["Conv"]).idxmax()[aggregated_columns].copy()
+    df_worst_architecture = aggregator(df_ranking).reset_index(level=[0,1,2]).groupby(["Local"]).idxmax()[aggregated_columns].copy()
+    df_worst_pooling =  df_worst_pooling.map(lambda x:pool_map[x])
+    df_worst_architecture =  df_worst_architecture.map(lambda x:conv_map[x])
+
     training_time = df["training_time"].sum(axis=1).copy().astype(int).astype(str)
-    df = df.drop(columns=["training_time"])
+    df = df.drop(columns=["training_time", "mean_accuracy"])
     df.columns = df.columns.droplevel(0)
     df = df.rename_axis(None, axis=1)
     df["Training Time"] = training_time
-    return df
 
+    df_by_architecture = df.iloc[best_indexes_by_architecture].copy()
+    df_by_pooling = df.iloc[best_indexes_by_pooling].copy()
+    
+    return df, df_best_architecture, df_worst_architecture, average_ranking_df_archi, df_by_architecture, df_best_pooling, df_worst_pooling, average_ranking_df_pooling, df_by_pooling.reorder_levels([1,2,0]).sort_index()
 
 def get_mean_tuple_list(tuple_list: List[Tuple[float, str]]) -> List[Tuple[float, str]]:
     """
