@@ -90,7 +90,6 @@ class VisualisationPlot() :
         the pooling (this will be used for the following function
         pairplot_from_dict)
         """
-
         grouped_data = defaultdict(list)
 
         # Group dictionaries by the 'pooling' key
@@ -110,6 +109,7 @@ class VisualisationPlot() :
         as keys and the mean of values as values
         """
         res = defaultdict(lambda: (0, 0))
+
         for val, key in tuple_list:
             prev_val, i = res[key]
             res[key] = (prev_val + val, i + 1)
@@ -127,25 +127,7 @@ class VisualisationPlot() :
 
         figsize -> width and height of the figure (figsize argument matplotlib figure function)
         **kwargs -> additional keyword arguments passed to matplotlib scatter function
-
-        Raises an error if the desired keys are not present in a dictionary
         """
-        # checking that there is no problem of keys in each given dictionary
-        key_values_to_check = [
-            "nb_parameters",
-            "mean_accuracy",
-            "homophily",
-            "local_pooling_layer",
-            "convolution_layer",
-            "dataset",
-        ]
-
-        for i, d in enumerate(self.list_dict):
-
-            if not (all(key in d for key in key_values_to_check)):
-
-                raise Exception(f"Problem of key for the {i}-th dictionary")
-
         # the x,y and z of the scatter in 3D
         x = np.array([d["nb_parameters"] for d in self.list_dict])
         y = np.array([d["mean_accuracy"] for d in self.list_dict])
@@ -320,7 +302,6 @@ class VisualisationPlot() :
             ax.legend(handles=legend_color + legend_shape, **kwargs2)
 
             ax.set_xscale('log')
-            ax.set_yscale('logit') 
 
             ax.set_xlabel(key1)
             ax.set_ylabel(key2)

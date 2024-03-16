@@ -14,11 +14,22 @@ class Prepare :
         self._path_list_dict = os.path.join("..", "model", "results")
         self._path_homophily = os.path.join("..", "homophily", "homophily_data.csv")
 
+        # taken from https://chrsmrrs.github.io/datasets/docs/datasets/
+        # for each dataset, the tuple of the average number of nodes and
+        # edges respectively
+        self.additional_information = \
+            {
+                "ENZYMES" : (32.63, 62.14),
+                "PROTEINS" : (39.06, 72.82),
+                "MUTAG" : (17.93, 19.79),
+                "NCI1" : (29.87, 32.30)
+            }
+
         self.set_list_dict()
-        self.set_cross_dataframe()
+        self.set_additional_information()
 
 
-    def set_list_dict(self) :
+    def set_list_dict(self) -> None :
         """
         Return the list of dictionary that is used for most
         visualisation task
@@ -39,7 +50,13 @@ class Prepare :
         self.list_dict = list_dict
 
 
-    def set_cross_dataframe(self) :
+    def set_additional_information(self) -> None :
+        """
+        Add extra information on the dictionaries of list_dict:
+        the homophily of the dataset, the average number of nodes
+        and edges, and a new variable beeing the pooling and the
+        architecture
+        """
 
         df_homophily = pd.read_csv(self._path_homophily)
         df_homophily['Name_Dataset'] = df_homophily['Name_Dataset'].apply(lambda s : s.upper())
@@ -47,6 +64,7 @@ class Prepare :
         for dic in self.list_dict :
 
             name_dataset = dic["dataset"]
+
             dic["homophily"] = df_homophily.loc[df_homophily['Name_Dataset'] == name_dataset, 'Homophily_edge_train'].values[0]
 
             if dic['local_pooling_layer'] is None:
@@ -54,11 +72,13 @@ class Prepare :
 
             dic["pooling_and_archi"] = f"{dic['local_pooling_layer']}+{dic['convolution_layer']}"
 
+            avg_nodes, avg_edges = self.additional_information[name_dataset]
+            dic["avg_nodes"] = avg_nodes
+            dic["avg_edges"] = avg_edges
 
     def get_list_dict(self) -> List[Dict] :
-
         return self.list_dict
-
+    
 
 def get_list_dict() -> List[Dict] :
     prepare = Prepare()
