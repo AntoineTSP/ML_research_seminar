@@ -5,6 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.markers as markers
 import matplotlib.patches as mpatches
+from matplotlib.transforms import Bbox
 
 from collections import defaultdict
 import os
@@ -15,7 +16,7 @@ class VisualisationPlot() :
     def __init__(self, list_dict : List[Dict]) :
         
         self.path_scatter_plot = os.path.join('results', 'scatter_plot_3D', 'scatter_plot_3D.png')
-        self.path_pairplot = os.path.join('results', 'pairplot', 'pairplot.png')
+        self.path_pairplot = os.path.join('results', 'pairplot')
         self.path_barplot = os.path.join('results', 'barplot')
 
         self.list_dict = list_dict
@@ -187,6 +188,7 @@ class VisualisationPlot() :
         kwargs1: Dict[str, Any] = {},
         kwargs2: Dict[str, Any] = {},
         kwargs3: Dict[str, Any] = {},
+        padding_subplots : float = 0.07
     ) -> None:
         """
         Plot all the variables described in rows_to_plot in subfigures
@@ -206,6 +208,8 @@ class VisualisationPlot() :
         **kwargs1 -> additional keyword arguments passed to matplotlib scatter function
         **kwargs2 -> additional keyword arguments passed to matplotlib legend function
         **kwargs2 -> additional keyword arguments passed to matplotlib plot function (if plot)
+
+        padding_subplots -> the padding to save the box for each subplot
 
         Raises error if some elements of the rows don't correspond to key values in list_dict,
         or if the number of elements of rows_to_plot don't fit the dimension of dim_grid_subplots
@@ -306,8 +310,30 @@ class VisualisationPlot() :
             ax.set_xlabel(key1)
             ax.set_ylabel(key2)
 
+            # Save the current subplot
+            # We need to draw the canvas to ensure that all elements are laid out correctly
+            plt.gcf().canvas.draw()
+
+            # Get the bounding box of the axis, including any labels, titles, etc.
+            bbox = ax.get_tightbbox(plt.gcf().canvas.get_renderer())
+            bbox_inches = bbox.transformed(plt.gcf().dpi_scale_trans.inverted())
+
+            bbox_inches_expanded = Bbox.from_extents(
+                bbox_inches.x0 - padding_subplots,
+                bbox_inches.y0 - padding_subplots,
+                bbox_inches.x1 + padding_subplots,
+                bbox_inches.y1 + padding_subplots
+            )
+
+            # Save the subplot using the bounding box
+            plt.savefig(os.path.join(self.path_pairplot,
+                                     f"pairplot-{key1}-{key2}.png"),
+                        bbox_inches=bbox_inches_expanded)
+
         plt.tight_layout()
-        plt.savefig(self.path_pairplot)
+        plt.savefig(os.path.join(self.path_pairplot,
+                                 'pairplot.png')
+        )
         plt.show()
 
         return
@@ -325,11 +351,14 @@ class VisualisationPlot() :
         n_colors: int = 10,
         kwargs1: Dict[str, Any] = {},
         kwargs2: Dict[str, Any] = {},
+        padding_subplots : float = .005
     ) -> None :
         """
         groupby -> the key along which each bar will be plotted
         stack -> the key along which each bar will be duplicated
             (if None, there is no stacking)
+
+        padding_subplots -> the padding to save the box for each subplot
         """
 
         # first, create a dictionary whose keys are the dataset and values are
@@ -470,11 +499,18 @@ class VisualisationPlot() :
             bbox = ax.get_tightbbox(plt.gcf().canvas.get_renderer())
             bbox_inches = bbox.transformed(plt.gcf().dpi_scale_trans.inverted())
 
+            bbox_inches_expanded = Bbox.from_extents(
+                bbox_inches.x0 - padding_subplots,
+                bbox_inches.y0 - padding_subplots,
+                bbox_inches.x1 + padding_subplots,
+                bbox_inches.y1 + padding_subplots
+            )
+
             # Save the subplot using the bounding box
             plt.savefig(os.path.join(self.path_barplot,
                                      f"barplot-groupby_{groupby}"
                                      f"-stack_{stack}-dataset_{dataset}.png"),
-                        bbox_inches=bbox_inches)
+                        bbox_inches=bbox_inches_expanded)
 
         # Adjust the spacing after creating subplots
         plt.tight_layout()
