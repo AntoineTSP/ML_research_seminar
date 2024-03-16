@@ -49,7 +49,7 @@ def get_pooling_mapping(list_dict: List[Dict]) -> Tuple[List, Dict, List]:
     To do so, this function return the mapping (a dictionary) and
     the list of all colors corresponding to the pooling
     """
-    poolings = [d["pooling"] for d in list_dict]
+    poolings = [d["local_pooling_layer"] for d in list_dict]
     unique_poolings = np.unique(poolings)
 
     existing_colors = plt.get_cmap("tab10", len(unique_poolings))
@@ -82,7 +82,7 @@ def plot_from_dict(
         "nb_parameters",
         "mean_accuracy",
         "homophily",
-        "pooling",
+        "local_pooling_layer",
         "convolution_layer",
         "dataset",
     ]
@@ -105,7 +105,7 @@ def plot_from_dict(
     # scatter in 3D
     fig = plt.figure(figsize=figsize)
     plt.tight_layout()
-    ax = ax = fig.add_subplot(111, projection="3d")
+    ax = fig.add_subplot(111, projection="3d")
 
     # the legend for the colors
     colors_keys = list(color_mapping.keys())
@@ -140,7 +140,7 @@ def plot_from_dict(
     ax.set_ylabel("Mean accuracy")
     ax.set_zlabel("Homophily", labelpad=0.0)
 
-    plt.savefig("./Visualisation/results/scatter_plot_3D.png")
+    plt.savefig("./Visualisation/results/scatter_plot_3D/scatter_plot_3D.png")
 
     plt.show()
 
@@ -278,7 +278,7 @@ def pairplot_from_dict(
                 x_plot = np.array([dic[key1] for dic in grouped_list[i]])
                 y_plot = np.array([dic[key2] for dic in grouped_list[i]])
 
-                plot_pooling = grouped_list[i][0]["pooling"]
+                plot_pooling = grouped_list[i][0]["local_pooling_layer"]
                 color = color_mapping[plot_pooling]
 
                 x_plot_argsort = np.argsort(x_plot)
@@ -299,7 +299,7 @@ def pairplot_from_dict(
 
     plt.tight_layout()
 
-    plt.savefig("./Visualisation/results/pairplot.png")
+    plt.savefig("./Visualisation/results/pairplot/pairplot.png")
 
     # Show the plot
     plt.show()
@@ -596,9 +596,25 @@ def plot_bar_dataset(
         ax.set_ylabel("Mean Accuracy")
         ax.set_xlabel(groupby[0].upper() + groupby[1:])
 
+        # Save the current subplot
+        # We need to draw the canvas to ensure that all elements are laid out correctly
+        plt.gcf().canvas.draw()
+
+        # Get the bounding box of the axis, including any labels, titles, etc.
+        bbox = ax.get_tightbbox(plt.gcf().canvas.get_renderer())
+        bbox_inches = bbox.transformed(plt.gcf().dpi_scale_trans.inverted())
+
+        # Save the subplot using the bounding box
+        plt.savefig(f"./Visualisation/results/barplot/barplot-groupby_{groupby}"
+                    f"-stack_{stack}-dataset_{dataset}.png", bbox_inches=bbox_inches)
+
     # Adjust the spacing after creating subplots
     plt.tight_layout()
     plt.subplots_adjust(hspace=0.5)
+    plt.savefig(
+            f"./Visualisation/results/barplot/barplot-groupby_{groupby}"
+            f"-stack_{stack}-aggregate.png"
+            )
 
     plt.show()
 
