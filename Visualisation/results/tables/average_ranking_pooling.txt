@@ -1,11 +1,11 @@
-\begin{tabular}{lrrr}
+\begin{tabular}{lrrrr}
 \toprule
-Dataset & ENZYMES & MUTAG & PROTEINS \\
+Dataset & ENZYMES & MUTAG & NCI1 & PROTEINS \\
 \midrule
-EDGE & 7 & 15 & 11 \\
-MEWIS & 12 & 13 & 13 \\
-None & 8 & 14 & 10 \\
-SAG & 25 & 21 & 19 \\
-TOPK & 23 & 12 & 23 \\
+EDGE & 1 & 1 & 2 & 1 \\
+MEWIS & 5 & 3 & 1 & 2 \\
+None & 2 & 2 & 3 & 2 \\
+SAG & 12 & 4 & 10 & 8 \\
+TOPK & 10 & 4 & 11 & 11 \\
 \bottomrule
 \end{tabular}
