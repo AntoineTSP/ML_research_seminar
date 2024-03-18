@@ -1,9 +1,9 @@
-\begin{tabular}{ll}
+\begin{tabular}{lllll}
 \toprule
- & 0 \\
+Dataset & ENZYMES & MUTAG & NCI1 & PROTEINS \\
 \midrule
-GAT & TOPK \\
-GCN & SAG \\
-GINConv & SAG \\
+GAT & SAG & EDGE & SAG & TOPK \\
+GCN & TOPK & SAG & SAG & MEWIS \\
+GINConv & SAG & SAG & TOPK & TOPK \\
 \bottomrule
 \end{tabular}

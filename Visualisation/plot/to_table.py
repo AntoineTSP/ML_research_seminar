@@ -6,18 +6,27 @@ import os
 
 class ToTable() :
 
-    def __init__(self, list_dict : List[Dict], per_dataset : bool = True) -> None :
+    def __init__(self, list_dict : List[Dict], per_dataset : bool = True, global_pooling : str = "max") -> None :
         """
         Per dataset indicates whether the aggregator used for the best and
         worst results (four dataframes in total) is per datasets or not 
         (aggregate on all datasets)
+        global_pooling indicates whether the computation is done over all 
+        the models or just the models using mean global pooling or max
+        global pooling. Put nothing in order to compute over everything.
         """
         self.list_dict = list_dict        
         self.per_dataset = per_dataset
-
+        self.global_pooling = global_pooling
+        if self.global_pooling == "":
+            self.level = [0,1,2]
+            self.level_transpose = [1,2,0]
+        else:
+            self.level = [0,1]
+            self.level_transpose = [1,0]
         self.save_path = os.path.join('results', 'tables')
         self.save_file_name_df = "full_result.txt"
-        self.save_file_name_average_ranking_df_archi = 'average_ranking_archi'
+        self.save_file_name_average_ranking_df_archi = 'average_ranking_archi.txt'
         self.save_file_name_average_ranking_df_pooling = 'average_ranking_pooling.txt'
         self.save_file_name_df_by_architecture = 'result_by_archi.txt'
         self.save_file_name_df_by_pooling = 'result_by_pooling.txt'
@@ -27,6 +36,8 @@ class ToTable() :
         self.save_file_name_df_worst_pooling = 'worst_pooling.txt'
 
         self.set_transpose()
+        if self.global_pooling != "":
+            self.filter()
         self.to_bold()
         self.rename_columns()
         self.set_datasets()
@@ -83,22 +94,23 @@ class ToTable() :
 
         self.df = pd.DataFrame(dic_results)
 
+    def filter(self) -> None :
+        self.df = self.df[self.df["global_pooling_layer"]==self.global_pooling]
+
     def to_bold(self) -> None :
         """
         Bold the values of the dataframe (self.df) that corresponds to the maximum
         """
         indexes_to_bold = self.df.groupby("dataset")["mean_accuracy"].idxmax()
 
+        self.df['mean_accuracy'] = self.df['mean_accuracy'].apply('{:.3f}'.format).astype(str)
+        self.df['std_accuracy'] = self.df['std_accuracy'].apply('{:.3f}'.format).astype(str)
+
         self.df['accuracy'] = \
-            f"${self.df['mean_accuracy'].apply('{:.3f}'.format).astype(str)}\pm" \
-            f"{self.df['std_accuracy'].apply('{:.3f}'.format).astype(str)}$"
+            self.df.apply(lambda row: '${} \\pm {}$'.format(row['mean_accuracy'], row['std_accuracy']), axis=1)
 
-        
         self.df.loc[indexes_to_bold, 'accuracy'] = \
-            f"$\\bm{{{self.df.loc[indexes_to_bold, 'mean_accuracy'].apply('{:.3f}'.format).astype(str)}\\pm" \
-            f"{self.df.loc[indexes_to_bold, 'std_accuracy'].apply('{:.3f}'.format).astype(str)}}}$"
-
-    
+            self.df.loc[indexes_to_bold].apply(lambda row: '$\\bm{{{} \\pm {}}}$'.format(row['mean_accuracy'], row['std_accuracy']), axis=1)
 
     def rename_columns(self) -> None :
         """
@@ -124,12 +136,15 @@ class ToTable() :
         """
         Use the function 'pivot' of pandas to 'group by' datasets (multicolumns)
         """
+        if self.global_pooling == "":
+            indexes = ["Conv", "Local", "Global"]
+        else:
+            indexes = ["Conv", "Local"]
         self.df = self.df.pivot(
-            index=["Conv", "Local", "Global"],
+            index=indexes,
             columns="Dataset",
             values=["accuracy", "training_time", "mean_accuracy"],
         )
-
     def set_ranking(self) -> None :
         """
         Set a new attribute to be the argsort of the mean accuracy (after the groupby)
@@ -140,8 +155,8 @@ class ToTable() :
         """
         Set the convolution mapping and the pooling mapping (new attributes)
         """
-        self.conv_map = self.df.reset_index(level=[0,1,2])["Conv"].to_dict()
-        self.pool_map = self.df.reset_index(level=[0,1,2])["Local"].to_dict()
+        self.conv_map = self.df.reset_index(level=self.level)["Conv"].to_dict()
+        self.pool_map = self.df.reset_index(level=self.level)["Local"].to_dict()
 
     def set_aggregator(self) -> None :
         """
@@ -160,26 +175,26 @@ class ToTable() :
         Set the best pooling and architecture with respect to the aggregator
         (two dataframes) plus the corresponding values
         """
-        self.df_best_pooling = self.aggregator(self.df_ranking).reset_index(level=[0,1,2]) \
+        self.df_best_pooling = self.aggregator(self.df_ranking).reset_index(level=self.level) \
             .groupby(["Conv"]).idxmin()[self.aggregated_columns].copy()
-        self.df_best_architecture = self.aggregator(self.df_ranking).reset_index(level=[0,1,2]) \
+        self.df_best_architecture = self.aggregator(self.df_ranking).reset_index(level=self.level) \
             .groupby(["Local"]).idxmin()[self.aggregated_columns].copy()
-        
-        self.df_best_pooling = self.df_best_pooling.map(lambda x:self.pool_map[x])
-        self.df_best_architecture = self.df_best_architecture.map(lambda x:self.conv_map[x])
 
         self.best_indexes_by_architecture = list(set(self.df_best_pooling.values.flatten()))
         self.best_indexes_by_pooling = list(set(self.df_best_architecture.values.flatten()))
+
+        self.df_best_pooling = self.df_best_pooling.map(lambda x:self.pool_map[x])
+        self.df_best_architecture = self.df_best_architecture.map(lambda x:self.conv_map[x])
 
     def set_worst(self) -> None :
         """
         Set the worst pooling and architecture with respect to the aggregator
         """
         self.df_worst_pooling = \
-            self.aggregator(self.df_ranking).reset_index(level=[0,1,2]).groupby(["Conv"]) \
+            self.aggregator(self.df_ranking).reset_index(level=self.level).groupby(["Conv"]) \
             .idxmax()[self.aggregated_columns].copy()
         self.df_worst_architecture = \
-            self.aggregator(self.df_ranking).reset_index(level=[0,1,2]).groupby(["Local"]) \
+            self.aggregator(self.df_ranking).reset_index(level=self.level).groupby(["Local"]) \
             .idxmax()[self.aggregated_columns].copy()
         
         self.df_worst_pooling = self.df_worst_pooling.map(lambda x:self.pool_map[x])
@@ -201,9 +216,9 @@ class ToTable() :
         and pooling respectively
         """
         self.average_ranking_df_archi = self.df_ranking.reset_index(level=[0]) \
-            .groupby(["Conv"])[self.datasets].mean().astype(int)
+            .groupby(["Conv"])[self.datasets].min().astype(int)
         self.average_ranking_df_pooling = self.df_ranking.reset_index(level=[1]) \
-            .groupby(["Local"])[self.datasets].mean().astype(int)
+            .groupby(["Local"])[self.datasets].min().astype(int)
     
     def set_df_by(self) -> Tuple[pd.DataFrame, pd.DataFrame] :
         """
@@ -212,7 +227,7 @@ class ToTable() :
         """
         self.df_by_architecture = self.df.iloc[self.best_indexes_by_architecture].copy()
         self.df_by_pooling = self.df.iloc[self.best_indexes_by_pooling].copy() \
-            .reorder_levels([1,2,0]).sort_index()
+            .reorder_levels(self.level_transpose).sort_index()
     
     def get_all(self) -> Tuple[pd.DataFrame,
                                pd.DataFrame,
@@ -251,11 +266,11 @@ class ToTable() :
         Save all the dataframes in the respective save_file_names
         """
         ToTable.save_df_latex(self.df, self.save_path, self.save_file_name_df)
-        ToTable.save_df_latex(self.df_best_architecture, self.save_path, self.save_file_name_average_ranking_df_archi)
-        ToTable.save_df_latex(self.df_worst_architecture, self.save_path, self.save_file_name_average_ranking_df_pooling)
-        ToTable.save_df_latex(self.average_ranking_df_archi, self.save_path, self.save_file_name_df_by_architecture)
-        ToTable.save_df_latex(self.df_by_architecture, self.save_path, self.save_file_name_df_by_pooling)
-        ToTable.save_df_latex(self.df_best_pooling, self.save_path, self.save_file_name_df_best_architecture)
-        ToTable.save_df_latex(self.df_worst_pooling, self.save_path, self.save_file_name_df_worst_architecture)
-        ToTable.save_df_latex(self.average_ranking_df_pooling, self.save_path, self.save_file_name_df_best_pooling)
-        ToTable.save_df_latex(self.df_by_pooling, self.save_path, self.save_file_name_df_worst_pooling)
+        ToTable.save_df_latex(self.average_ranking_df_archi, self.save_path, self.save_file_name_average_ranking_df_archi)
+        ToTable.save_df_latex(self.average_ranking_df_pooling, self.save_path, self.save_file_name_average_ranking_df_pooling)
+        ToTable.save_df_latex(self.df_by_architecture, self.save_path, self.save_file_name_df_by_architecture)
+        ToTable.save_df_latex(self.df_by_pooling, self.save_path, self.save_file_name_df_by_pooling)
+        ToTable.save_df_latex(self.df_best_architecture, self.save_path, self.save_file_name_df_best_architecture)
+        ToTable.save_df_latex(self.df_worst_architecture, self.save_path, self.save_file_name_df_worst_architecture)
+        ToTable.save_df_latex(self.df_best_pooling, self.save_path, self.save_file_name_df_best_pooling)
+        ToTable.save_df_latex(self.df_worst_pooling, self.save_path, self.save_file_name_df_worst_pooling)
