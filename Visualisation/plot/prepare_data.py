@@ -4,6 +4,7 @@ from json import load
 import os
 from mimetypes import guess_type
 
+from statistics import median
 import pandas as pd
 
 
@@ -26,6 +27,8 @@ class Prepare :
             }
 
         self.set_list_dict()
+        self.drop_mean_pooling()
+        self.set_median_training_time()
         self.set_additional_information()
 
 
@@ -49,6 +52,28 @@ class Prepare :
 
         self.list_dict = list_dict
 
+    
+    def drop_mean_pooling(self) -> None :
+        """
+        Drop all the entries that are not mean
+        """
+        self.list_dict = [dic for dic in self.list_dict if dic["global_pooling_layer"] != "mean"]
+
+
+    def set_median_training_time(self) -> None :
+        """
+        Add a new key corresponding to the median of the training
+        time along the splits for all dictionary of list_dict
+        """
+        for dic in self.list_dict :
+            res = []
+
+            for (key,value) in dic.items() :
+                if 'split' in key :
+                    res.append(value['last_epoch']*value['train_time_per_epoch'])
+
+            dic["Training time"] = median(res)
+
 
     def set_additional_information(self) -> None :
         """
@@ -57,7 +82,6 @@ class Prepare :
         and edges, and a new variable beeing the pooling and the
         architecture
         """
-
         df_homophily = pd.read_csv(self._path_homophily)
         df_homophily['Name_Dataset'] = df_homophily['Name_Dataset'].apply(lambda s : s.upper())
 
@@ -76,9 +100,11 @@ class Prepare :
             dic["avg_nodes"] = avg_nodes
             dic["avg_edges"] = avg_edges
 
+
     def get_list_dict(self) -> List[Dict] :
         return self.list_dict
     
+
 
 def get_list_dict() -> List[Dict] :
     prepare = Prepare()

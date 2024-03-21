@@ -20,6 +20,17 @@ class VisualisationPlot() :
         self.path_barplot = os.path.join('results', 'barplot')
 
         self.list_dict = list_dict
+
+        # a dictionary that renames some keys for better visual results
+        self.rename_dict = {
+                'mean_accuracy' : 'Mean accuracy',
+                'homophily' : 'Homophily',
+                'nb_parameters' : 'Number of parameters',
+                'avg_nodes' : 'Average number of nodes',
+                'avg_edges' : 'Average number of edges',
+                'local_pooling_layer' : 'Local pooling layer',
+                'convolution_layer' : 'Convolution layer',
+            }
                 
         self.set_convolution_mapping()
         self.set_pooling_mapping()
@@ -43,9 +54,9 @@ class VisualisationPlot() :
             raise Exception(
                 f"Not enough possible values of shape for the convolutions : got {len(convolutions)} but expected 41 at most"
             )
+        
         # same as for the colors: creating a mapping of the convolutions to the shapes
-
-        existing_shapes = list(markers.MarkerStyle.markers.keys())
+        existing_shapes = ['o', 's', '^', '>', '<', 'p', '*', 'h', 'H', '+', 'x', 'D', 'd']
         shape_mapping = {}
 
         for i, value in enumerate(unique_convolutions):
@@ -69,13 +80,15 @@ class VisualisationPlot() :
         poolings = [d["local_pooling_layer"] for d in self.list_dict]
         unique_poolings = np.unique(poolings)
 
-        existing_colors = plt.get_cmap("tab10", len(unique_poolings))
+        colors = plt.cm.hsv(np.linspace(0, 1, 100))
+        color_map = plt.cm.colors.ListedColormap(colors)
+        existing_colors = [color_map(i / len(unique_poolings)) for i in range(len(unique_poolings))]
 
         color_mapping = {}
         # creating a dictionary that maps each value of pooling to a color
 
         for i, value in enumerate(unique_poolings):
-            color_mapping[value] = existing_colors(i)
+            color_mapping[value] = existing_colors[i]
 
         # mapping the values through the dictionary
         colors = [color_mapping[value] for value in poolings]
@@ -118,7 +131,24 @@ class VisualisationPlot() :
         get_mean = lambda t: t[0] / t[1]
 
         return {key: get_mean(value) for key, value in res.items()}
+    
 
+    def get_list_dict_dataset(self, dataset : str | None) -> List[Dict]:
+        """
+        Returns the list dict but only for a given dataset (or just list_dict
+        if dataset is None)
+        """
+        if dataset is None :
+            return self.list_dict
+        
+        possible_dataset = set([dic['dataset'] for dic in self.list_dict])
+        if not dataset in possible_dataset :
+            raise Exception(
+                f"The dataset {dataset} provided is not in the existing dataset {possible_dataset}"
+            )
+        
+        return [dic for dic in self.list_dict if dic['dataset'] == dataset]
+    
 
     def plot_from_dict(
         self, figsize: Tuple[int, int] = (10, 6), **kwargs
@@ -182,6 +212,7 @@ class VisualisationPlot() :
     def pairplot_from_dict(
         self,
         rows_to_plot: List[Tuple[str, str]],
+        dataset : str | None,
         dim_grid_subplots: Tuple[int, int],
         figsize: Tuple[int, int] | None = None,
         plot: bool = True,
@@ -197,6 +228,8 @@ class VisualisationPlot() :
         rows_to_plot -> All the variables of the dictionnaries of list_dict we want to
         plot (for instance, denoting (x,y) the first entry of rows_to_plot, the first plot will
         be dict[x] for the x-axis and dict[y] for the y-axis, for dict in list_dict)
+
+        dataset -> whether to consider the whole data (None) or just the data for a given dataset
 
         dim_grid_subplots -> the dimension of the grid of subplots (for instance (2,3) means that there
         are two rows and 3 columns)
@@ -214,8 +247,10 @@ class VisualisationPlot() :
         Raises error if some elements of the rows don't correspond to key values in list_dict,
         or if the number of elements of rows_to_plot don't fit the dimension of dim_grid_subplots
         """
+        list_dict = self.get_list_dict_dataset(dataset)
+
         # the list of all keys present in list_dict
-        keys_list_dict = [dic.keys() for dic in self.list_dict]
+        keys_list_dict = [dic.keys() for dic in list_dict]
 
         for i, (key1, key2) in enumerate(rows_to_plot):
 
@@ -245,6 +280,7 @@ class VisualisationPlot() :
                 f"is not consistent with the number of plots ({len(rows_to_plot)}) "
             )
 
+        # doesn't change anything if we don't consider all the dataset
         colors_keys = list(self.color_mapping.keys())
         color_values = list(self.color_mapping.values())
 
@@ -271,8 +307,8 @@ class VisualisationPlot() :
                 for i in range(len(shape_keys))
             ]
 
-            x_values = [dic[key1] for dic in self.list_dict]
-            y_values = [dic[key2] for dic in self.list_dict]
+            x_values = [dic[key1] for dic in list_dict]
+            y_values = [dic[key2] for dic in list_dict]
 
             for x_value, y_value, color, shape in zip(x_values, y_values, self.colors, self.shapes):
                 ax.scatter(
@@ -307,8 +343,8 @@ class VisualisationPlot() :
 
             ax.set_xscale('log')
 
-            ax.set_xlabel(key1)
-            ax.set_ylabel(key2)
+            ax.set_xlabel(self.rename_dict.get(key1,key1))
+            ax.set_ylabel(self.rename_dict.get(key2,key2))
 
             # Save the current subplot
             # We need to draw the canvas to ensure that all elements are laid out correctly
@@ -332,7 +368,7 @@ class VisualisationPlot() :
 
         plt.tight_layout()
         plt.savefig(os.path.join(self.path_pairplot,
-                                 'pairplot.png')
+                                 f'pairplot_{dataset}.png')
         )
         plt.show()
 
@@ -489,7 +525,7 @@ class VisualisationPlot() :
 
             ax.set_title(f"Dataset: {dataset}")
             ax.set_ylabel("Mean Accuracy")
-            ax.set_xlabel(groupby[0].upper() + groupby[1:])
+            ax.set_xlabel(self.rename_dict.get(groupby,groupby))
 
             # Save the current subplot
             # We need to draw the canvas to ensure that all elements are laid out correctly
